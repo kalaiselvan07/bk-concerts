@@ -13,7 +13,7 @@ import (
 )
 
 const resendAPI = "https://api.resend.com/emails"
-const defaultFrom = "BlackTickets <noreply@blacktickets.com>"
+const defaultFrom = "Resend <onboarding@resend.dev>"
 
 // ResendEmail defines Resend API structure
 type ResendEmail struct {
