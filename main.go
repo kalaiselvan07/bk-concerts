@@ -7,6 +7,9 @@ import (
 	"bk-concerts/logger" // Your logging package
 	"fmt"
 	"log"
+	"os"
+	"strings"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
@@ -32,19 +35,40 @@ func main() {
 		AllowHeaders: []string{"Authorization", "Content-Type"},
 	}))
 
-	connStr := "user=postgres password=postgres dbname=postgres sslmode=disable"
+	// --- DATABASE CONNECTION ---
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		// local fallback (what you had)
+		dsn = "user=postgres password=postgres dbname=postgres sslmode=disable"
+		logger.Log.Warn("[main] DATABASE_URL not set. Falling back to local Postgres.")
+	} else {
+		// Ensure sslmode=require for Neon (safeguard if the copied URL lacked it)
+		if !strings.Contains(dsn, "sslmode=") {
+			sep := "?"
+			if strings.Contains(dsn, "?") {
+				sep = "&"
+			}
+			dsn = dsn + sep + "sslmode=require"
+		}
+	}
 
-	// --- DATABASE CONNECTION LOGGING ---
 	logger.Log.Info("[main] Attempting to connect to PostgreSQL...")
-	if err := db.InitDB(connStr); err != nil {
-		logger.Log.Error(fmt.Sprintf("[main] Database connection failed: %v", err)) // Use logger.Log.Error
+	if err := db.InitDB(dsn); err != nil {
+		logger.Log.Error(fmt.Sprintf("[main] Database connection failed: %v", err))
 		log.Fatalf("Database initialization failed: %v", err)
 	}
 	logger.Log.Info("[main] Database connection successful.")
-	defer db.DB.Close()
-	logger.Log.Info("[main] Deferred database closing configured.")
+	defer func() {
+		_ = db.DB.Close()
+		logger.Log.Info("[main] Database connection closed.")
+	}()
 
-	// --- MIGRATION LOGGING ---
+	// Optional: tune connection pool for serverless Postgres like Neon
+	db.DB.SetMaxOpenConns(5)
+	db.DB.SetMaxIdleConns(5)
+	db.DB.SetConnMaxLifetime(30 * time.Minute)
+
+	// --- MIGRATIONS ---
 	logger.Log.Info("[main] Running database migrations...")
 	if err := db.RunMigrations(); err != nil {
 		logger.Log.Error(fmt.Sprintf("[main] Database migration failed: %v", err))
