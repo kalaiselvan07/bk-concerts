@@ -29,10 +29,17 @@ func main() {
 
 	// Global Middleware: Logger and CORS (CRITICAL for frontend connection)
 	e.Use(middleware.Logger())
+
 	e.Use(middleware.CORSWithConfig(middleware.CORSConfig{
-		AllowOrigins: []string{"http://localhost:3000", "http://192.168.1.3:3000"},
-		AllowMethods: []string{"GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders: []string{"Authorization", "Content-Type"},
+		AllowOrigins: []string{
+			"https://bk-concerts-ui.vercel.app",
+		},
+		AllowMethods: []string{
+			echo.GET, echo.POST, echo.PUT, echo.PATCH, echo.DELETE, echo.OPTIONS,
+		},
+		AllowHeaders: []string{
+			echo.HeaderOrigin, echo.HeaderContentType, echo.HeaderAccept, echo.HeaderAuthorization,
+		},
 	}))
 
 	// --- DATABASE CONNECTION ---
