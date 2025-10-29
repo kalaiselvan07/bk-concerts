@@ -6,5 +6,6 @@ type Concert struct {
 	Venue       string   `json:"venue" validate:"required"`
 	Timing      string   `json:"timing" validate:"required"`
 	SeatIDs     []string `json:"seatIDs" validate:"required"`
+	PaymentIDs  []string `json:"paymentDetailsIDs" validate:"required"`
 	Description string   `json:"description,omitempty"`
 }

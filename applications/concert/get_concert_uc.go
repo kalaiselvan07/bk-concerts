@@ -5,57 +5,78 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bk-concerts/db" // Using the correct module path
+	"bk-concerts/db"
+	"bk-concerts/logger"
 
 	"github.com/google/uuid"
 )
 
+// NOTE: Concert struct definition (including PaymentIDs) is assumed here
+
 // GetConcert retrieves a single concert's details from the database by its ID.
 func GetConcert(concertID string) (*Concert, error) {
-	// 1. Validate and convert the ID string to uuid.UUID
+	logger.Log.Info(fmt.Sprintf("[get-concert-uc] Starting retrieval for concert ID: %s", concertID))
+
 	id, err := uuid.Parse(concertID)
 	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("[get-concert-uc] Retrieval failed for %s: Invalid UUID format.", concertID))
 		return nil, fmt.Errorf("invalid concert ID format: %w", err)
 	}
 
-	// 2. Define the SQL query
+	// 1. SELECT query includes payment_ids
 	const selectSQL = `
-		SELECT concert_id, title, venue, timing, seat_ids, description
+		SELECT concert_id, title, venue, timing, seat_ids, payment_ids, description
 		FROM concert
 		WHERE concert_id = $1`
 
-	// 3. Execute the query
+	logger.Log.Info(fmt.Sprintf("[get-concert-uc] Executing SELECT query for ID: %s", concertID))
 	row := db.DB.QueryRow(selectSQL, id)
 
 	c := &Concert{}
-	var seatIDsJSON []byte // Variable to temporarily hold the JSONB data
+	var seatIDsJSON []byte
+	var paymentIDsJSON []byte   // Variable for payment IDs JSONB
+	var concertIDUUID uuid.UUID // Use UUID type for scanning
 
-	// 4. Scan the row data into the struct fields
+	// 2. Scan arguments include paymentIDsJSON
 	err = row.Scan(
-		&c.ConcertID,
+		&concertIDUUID,
 		&c.Title,
 		&c.Venue,
 		&c.Timing,
-		&seatIDsJSON, // Scan the JSONB data into a byte slice
+		&seatIDsJSON,
+		&paymentIDsJSON, // Scan the new column
 		&c.Description,
 	)
 
-	// 5. Check the result of the scan
 	if err != nil {
+		// 3. Complete Error Handling
 		if err == sql.ErrNoRows {
-			// No concert was found
+			logger.Log.Warn(fmt.Sprintf("[get-concert-uc] Retrieval failed for %s: Not found in database.", concertID))
 			return nil, fmt.Errorf("concert with ID %s not found", concertID)
 		}
+		logger.Log.Error(fmt.Sprintf("[get-concert-uc] Database query error for %s: %v", concertID, err))
 		return nil, fmt.Errorf("database query error: %w", err)
 	}
 
-	// 6. Unmarshal the JSONB byte slice back into the []string field
+	// Assign the scanned UUID to the struct field
+	c.ConcertID = concertIDUUID.String() // Or keep as UUID if struct uses uuid.UUID
+
+	// 4. Unmarshal Seat IDs
 	if len(seatIDsJSON) > 0 && string(seatIDsJSON) != "null" {
 		if err := json.Unmarshal(seatIDsJSON, &c.SeatIDs); err != nil {
+			logger.Log.Error(fmt.Sprintf("[get-concert-uc] Failed to unmarshal seat IDs for %s: %v", concertID, err))
 			return nil, fmt.Errorf("failed to unmarshal seat IDs from database: %w", err)
 		}
 	}
 
-	// 7. Return the retrieved concert details
+	// 5. Unmarshal Payment IDs
+	if len(paymentIDsJSON) > 0 && string(paymentIDsJSON) != "null" {
+		if err := json.Unmarshal(paymentIDsJSON, &c.PaymentIDs); err != nil {
+			logger.Log.Error(fmt.Sprintf("[get-concert-uc] Failed to unmarshal payment IDs for %s: %v", concertID, err))
+			return nil, fmt.Errorf("failed to unmarshal payment IDs from database: %w", err)
+		}
+	}
+
+	logger.Log.Info(fmt.Sprintf("[get-concert-uc] Successfully retrieved concert: %s", concertID))
 	return c, nil
 }

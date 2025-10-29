@@ -2,12 +2,14 @@ package controllers
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 
-	"bk-concerts/applications/booking" // Using the correct module path
+	"bk-concerts/applications/booking"
+	"bk-concerts/logger"
 
 	"github.com/labstack/echo/v4"
 )
@@ -97,15 +99,31 @@ func GetBookingController(c echo.Context) error {
 	return c.JSON(http.StatusOK, bk)
 }
 
-// GetAllBookingsController handles GET /bookings (Read All)
+// GetAllBookingsController handles GET /api/v1/bookings
+// It retrieves *only* the bookings for the logged-in user.
 func GetAllBookingsController(c echo.Context) error {
-	bookingsList, err := booking.GetAllBookings()
-
-	if err != nil {
-		log.Printf("Error fetching all bookings: %v", err)
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to retrieve booking data: " + err.Error()})
+	// 1. Get the user's email from the context (set by JWTAuthMiddleware)
+	userEmail, ok := c.Get("userEmail").(string)
+	if !ok || userEmail == "" {
+		logger.Log.Error("[booking] Failed to get userEmail from context in GetAllBookingsController.")
+		return c.JSON(http.StatusUnauthorized, map[string]string{"error": "Invalid or missing token claims"})
 	}
 
+	logger.Log.Info(fmt.Sprintf("[booking] Fetching booking history for user: %s", userEmail))
+
+	// 2. Call the use case, passing the user's email for filtering
+	bookingsList, err := booking.GetAllBookings(userEmail)
+
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Error fetching booking history for %s: %v", userEmail, err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to retrieve booking data: " + err.Error(),
+		})
+	}
+
+	logger.Log.Info(fmt.Sprintf("[booking] Successfully retrieved %d bookings for %s.", len(bookingsList), userEmail))
+
+	// 3. Return the filtered list
 	return c.JSON(http.StatusOK, bookingsList)
 }
 
@@ -136,4 +154,132 @@ func DeleteBookingController(c echo.Context) error {
 	log.Println("Booking successfully cancelled. ID:", cancelledBooking.BookingID)
 	// Return the cancelled booking object with a 200 OK status
 	return c.JSON(http.StatusOK, cancelledBooking)
+}
+
+// UpdateBookingReceiptController handles PATCH /bookings/:bookingID/receipt
+// It allows the user to re-upload or replace their payment receipt image.
+func UpdateBookingReceiptController(c echo.Context) error {
+	bookingID := c.Param("bookingID")
+
+	// Read request body
+	payload, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Failed to read payload for booking %s: %v", bookingID, err))
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request payload.",
+		})
+	}
+
+	// Call use case
+	updatedBooking, err := booking.UpdateBookingReceiptUC(bookingID, payload)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Failed to update receipt for booking %s: %v", bookingID, err))
+
+		switch {
+		case strings.Contains(err.Error(), "invalid booking ID"):
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid booking ID."})
+		case strings.Contains(err.Error(), "invalid base64"):
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid receipt image format."})
+		case strings.Contains(err.Error(), "not found"):
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "Booking not found."})
+		default:
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Receipt update failed: " + err.Error()})
+		}
+	}
+
+	logger.Log.Info(fmt.Sprintf("[booking] Receipt updated successfully for booking %s.", bookingID))
+	return c.JSON(http.StatusOK, updatedBooking)
+}
+
+func GetBookingReceiptController(c echo.Context) error {
+	bookingID := c.Param("bookingID")
+
+	logger.Log.Info(fmt.Sprintf("[booking] Fetching receipt for bookingID: %s", bookingID))
+
+	// Call use case
+	bk, err := booking.GetBookingReceiptUC(bookingID)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Failed to fetch booking receipt for %s: %v", bookingID, err))
+
+		switch {
+		case err.Error() == "invalid booking ID format":
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid booking ID."})
+		case err.Error() == "booking not found":
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "Booking not found."})
+		default:
+			return c.JSON(http.StatusInternalServerError, map[string]string{
+				"error": fmt.Sprintf("Failed to fetch booking receipt: %v", err),
+			})
+		}
+	}
+
+	logger.Log.Info(fmt.Sprintf("[booking] Booking receipt fetched successfully for %s", bookingID))
+	return c.JSON(http.StatusOK, bk)
+}
+
+// 1️⃣ Fetch all bookings (admin only)
+func GetAllBookingsAdminController(c echo.Context) error {
+	logger.Log.Info("[booking-controller] Fetching all bookings (Admin)")
+	bookings, err := booking.GetAllBookingsAdminUC()
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking-controller] Failed to fetch all bookings: %v", err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch bookings"})
+	}
+
+	return c.JSON(http.StatusOK, bookings)
+}
+
+// 2️⃣ Fetch all pending bookings (awaiting verification)
+func GetPendingBookingsController(c echo.Context) error {
+	logger.Log.Info("[booking-controller] Fetching all pending bookings (Admin)")
+	bookings, err := booking.GetPendingBookingsUC()
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking-controller] Failed to fetch pending bookings: %v", err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch pending bookings"})
+	}
+
+	return c.JSON(http.StatusOK, bookings)
+}
+
+// VerifyBookingController handles PATCH /admin/bookings/:bookingID/verify?action=approve|reject
+func VerifyBookingController(c echo.Context) error {
+	bookingID := c.Param("bookingID")
+	action := strings.ToLower(c.QueryParam("action"))
+
+	if bookingID == "" || action == "" {
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Missing booking ID or action"})
+	}
+
+	var payload struct {
+		Reason string `json:"reason"`
+	}
+	_ = c.Bind(&payload) // optional; only relevant for rejection
+
+	logger.Log.Info(fmt.Sprintf("[booking-controller] Verification requested: %s → %s", bookingID, action))
+
+	switch action {
+	case "approve":
+		bk, err := booking.ApproveBookingUC(bookingID)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("[booking-controller] Approval failed for %s: %v", bookingID, err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to approve booking"})
+		}
+		return c.JSON(http.StatusOK, bk)
+
+	case "reject":
+		reason := strings.TrimSpace(payload.Reason)
+		if reason == "" {
+			reason = "Rejected by admin"
+		}
+		bk, err := booking.RejectBookingUC(bookingID, reason)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("[booking-controller] Rejection failed for %s: %v", bookingID, err))
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to reject booking"})
+		}
+		return c.JSON(http.StatusOK, bk)
+
+	default:
+		logger.Log.Warn(fmt.Sprintf("[booking-controller] Invalid action %q for booking %s", action, bookingID))
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid action; must be approve or reject"})
+	}
 }

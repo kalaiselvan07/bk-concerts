@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"bk-concerts/db"
+	"bk-concerts/db"     // Using the correct module path
+	"bk-concerts/logger" // ⬅️ Assuming this import path
 
 	"github.com/google/uuid"
 )
@@ -19,17 +20,23 @@ type UpdatePaymentParams struct {
 	Notes       string `json:"notes,omitempty"`
 }
 
+// NOTE: The PaymentDetails struct and GetPayment function are assumed to be defined elsewhere in this package.
+
 // UpdatePayment performs a general update of payment details based on the payload.
 func UpdatePayment(paymentID string, payload []byte) (*PaymentDetails, error) {
+	logger.Log.Info(fmt.Sprintf("[update-payment-details-uc] Starting update process for PaymentID: %s", paymentID))
+
 	var p UpdatePaymentParams
 
 	if err := json.Unmarshal(payload, &p); err != nil {
+		logger.Log.Error(fmt.Sprintf("[update-payment-details-uc] Unmarshal failed for %s: %v", paymentID, err))
 		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
 	// 1. Validate ID
 	id, err := uuid.Parse(paymentID)
 	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("[update-payment-details-uc] Update failed for %s: Invalid UUID format.", paymentID))
 		return nil, fmt.Errorf("invalid payment ID format: %w", err)
 	}
 
@@ -55,6 +62,7 @@ func UpdatePayment(paymentID string, payload []byte) (*PaymentDetails, error) {
 	}
 
 	if len(sets) == 0 {
+		logger.Log.Warn(fmt.Sprintf("[update-payment-details-uc] Update skipped for %s: No updatable fields provided.", paymentID))
 		// No fields to update, fetch the current details and return them
 		return GetPayment(paymentID)
 	}
@@ -67,6 +75,8 @@ func UpdatePayment(paymentID string, payload []byte) (*PaymentDetails, error) {
 		RETURNING payment_id, payment_type, details, notes`,
 		strings.Join(sets, ", "))
 
+	logger.Log.Info(fmt.Sprintf("[update-payment-details-uc] Executing UPDATE for %s with %d fields modified.", paymentID, len(sets)))
+
 	// 4. Execute and scan the returned row
 	pd := &PaymentDetails{}
 	row := db.DB.QueryRow(updateSQL, args...)
@@ -75,10 +85,13 @@ func UpdatePayment(paymentID string, payload []byte) (*PaymentDetails, error) {
 		&pd.PaymentID, &pd.PaymentType, &pd.Details, &pd.Notes,
 	); err != nil {
 		if err == sql.ErrNoRows {
+			logger.Log.Warn(fmt.Sprintf("[update-payment-details-uc] Update failed for %s: Payment not found.", paymentID))
 			return nil, fmt.Errorf("payment with ID %s not found", paymentID)
 		}
+		logger.Log.Error(fmt.Sprintf("[update-payment-details-uc] Database update error for %s: %v", paymentID, err))
 		return nil, fmt.Errorf("database update error: %w", err)
 	}
 
+	logger.Log.Info(fmt.Sprintf("[update-payment-details-uc] Payment %s updated successfully. Type: %s.", paymentID, pd.PaymentType))
 	return pd, nil
 }

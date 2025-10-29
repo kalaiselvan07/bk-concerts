@@ -4,61 +4,83 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bk-concerts/db" // Using the correct module path
+	// Added for rows.Err()
+	"bk-concerts/db"     // Using the correct module path
+	"bk-concerts/logger" // ⬅️ Assuming this import path
+	// NOTE: Concert struct definition (including PaymentIDs) is assumed here
 )
 
 // GetAllConcerts retrieves a slice of all concert records from the database.
 func GetAllConcerts() ([]*Concert, error) {
-	// 1. Define the SQL query
-	const selectAllSQL = `
-		SELECT concert_id, title, venue, timing, seat_ids, description
-		FROM concert
-		ORDER BY timing DESC` // Order by timing descending to show latest first
+	logger.Log.Info("[get-all-concert-uc] Starting retrieval of all concerts.")
 
-	// 2. Execute the query
+	// ✨ 1. Update SELECT query to include payment_ids ✨
+	const selectAllSQL = `
+		SELECT concert_id, title, venue, timing, seat_ids, payment_ids, description 
+		FROM concert
+		ORDER BY timing DESC`
+
+	logger.Log.Info("[get-all-concert-uc] Executing SELECT all query.")
 	rows, err := db.DB.Query(selectAllSQL)
 	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[get-all-concert-uc] Database query failed: %v", err))
 		return nil, fmt.Errorf("database query error: %w", err)
 	}
 	defer rows.Close() // Ensure the result set is closed
 
-	// 3. Initialize the slice
 	concerts := make([]*Concert, 0)
+	recordCount := 0
 
 	// 4. Iterate through the results
 	for rows.Next() {
 		c := &Concert{}
-		var seatIDsJSON []byte // Variable to temporarily hold the JSONB data
+		var seatIDsJSON []byte
+		var paymentIDsJSON []byte // ✨ Variable for payment IDs JSONB ✨
+		var concertIDStr string   // Helper if ConcertID is string in struct
 
-		// Scan the row data
+		// ✨ 2. Update Scan arguments ✨
 		err := rows.Scan(
-			&c.ConcertID,
+			&concertIDStr, // Scan UUID to string or handle UUID type
 			&c.Title,
 			&c.Venue,
 			&c.Timing,
-			&seatIDsJSON, // Scan the JSONB data
+			&seatIDsJSON,
+			&paymentIDsJSON, // ✨ Scan the new column ✨
 			&c.Description,
 		)
 		if err != nil {
+			logger.Log.Error(fmt.Sprintf("[get-all-concert-uc] Error scanning concert row: %v", err))
 			return nil, fmt.Errorf("error scanning concert row: %w", err)
 		}
+		c.ConcertID = concertIDStr // Assign if ConcertID is string
 
-		// Unmarshal the JSONB byte slice back into the []string field
+		// 3. Unmarshal Seat IDs
 		if len(seatIDsJSON) > 0 && string(seatIDsJSON) != "null" {
 			if err := json.Unmarshal(seatIDsJSON, &c.SeatIDs); err != nil {
+				logger.Log.Error(fmt.Sprintf("[get-all-concert-uc] Failed to unmarshal seat IDs for concert %s: %v", c.ConcertID, err))
 				return nil, fmt.Errorf("failed to unmarshal seat IDs from database: %w", err)
 			}
 		}
 
-		// Add the concert to the slice
+		// ✨ 4. Unmarshal Payment IDs ✨
+		if len(paymentIDsJSON) > 0 && string(paymentIDsJSON) != "null" {
+			if err := json.Unmarshal(paymentIDsJSON, &c.PaymentIDs); err != nil {
+				logger.Log.Error(fmt.Sprintf("[get-all-concert-uc] Failed to unmarshal payment IDs for concert %s: %v", c.ConcertID, err))
+				return nil, fmt.Errorf("failed to unmarshal payment IDs from database: %w", err)
+			}
+		}
+
 		concerts = append(concerts, c)
+		recordCount++
 	}
 
 	// 5. Check for errors encountered during iteration
 	if err = rows.Err(); err != nil {
+		logger.Log.Error(fmt.Sprintf("[get-all-concert-uc] Error during row iteration: %v", err))
 		return nil, fmt.Errorf("error during row iteration: %w", err)
 	}
 
+	logger.Log.Info(fmt.Sprintf("[get-all-concert-uc] Successfully retrieved %d concerts.", recordCount))
 	// 6. Return the slice of concerts
 	return concerts, nil
 }

@@ -6,7 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"bk-concerts/db"
+	"bk-concerts/db"     // Using the correct module path
+	"bk-concerts/logger" // ⬅️ Assuming this import path
 
 	"github.com/google/uuid"
 )
@@ -19,22 +20,23 @@ type PartialUpdateSeatParams struct {
 	Notes     string  `json:"notes,omitempty"`
 }
 
+// NOTE: The Seat struct and GetSeat function are assumed to be defined elsewhere in this package.
+
 // UpdateSeat performs a general update of seat details based on the payload.
-// It assumes the full payload (minus SeatID) is the data to be potentially updated.
 func UpdateSeat(seatID string, payload []byte) (*Seat, error) {
-	// We use the simpler CreateSeatParams struct to bind (assuming all fields are sent,
-	// or we use a separate struct for partial updates if fields can be omitted.)
-	// Let's use the dynamic method for true partial updates.
+	logger.Log.Info(fmt.Sprintf("[update-seat-uc] Starting general update for SeatID: %s", seatID))
+
 	var p PartialUpdateSeatParams
 
-	// Unmarshal into the PartialUpdate struct
 	if err := json.Unmarshal(payload, &p); err != nil {
+		logger.Log.Error(fmt.Sprintf("[update-seat-uc] Failed to unmarshal update payload for %s: %v", seatID, err))
 		return nil, fmt.Errorf("failed to unmarshal payload: %w", err)
 	}
 
 	// 1. Validate ID
 	id, err := uuid.Parse(seatID)
 	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("[update-seat-uc] Update failed for %s: Invalid UUID format.", seatID))
 		return nil, fmt.Errorf("invalid seat ID format: %w", err)
 	}
 
@@ -59,13 +61,11 @@ func UpdateSeat(seatID string, payload []byte) (*Seat, error) {
 		args = append(args, p.PriceInr)
 		argCounter++
 	}
-	// Check if 'Available' pointer is non-nil (meaning user provided the field)
 	if p.Available != nil {
 		sets = append(sets, fmt.Sprintf("available = $%d", argCounter))
 		args = append(args, *p.Available) // Dereference the pointer
 		argCounter++
 	}
-	// Check 'Notes' field
 	if p.Notes != "" {
 		sets = append(sets, fmt.Sprintf("notes = $%d", argCounter))
 		args = append(args, p.Notes)
@@ -74,17 +74,19 @@ func UpdateSeat(seatID string, payload []byte) (*Seat, error) {
 
 	// If no fields were provided, nothing to update.
 	if len(sets) == 0 {
-		// Fetch the current seat to return the existing details
+		logger.Log.Warn(fmt.Sprintf("[update-seat-uc] Update skipped for %s: No fields provided in payload.", seatID))
 		return GetSeat(seatID)
 	}
 
 	// 3. Construct the final SQL
 	updateSQL := fmt.Sprintf(`
-        UPDATE seat
-        SET %s
-        WHERE seat_id = $1
-        RETURNING seat_id, seat_type, price_gel, price_inr, available, notes`,
+		UPDATE seat
+		SET %s
+		WHERE seat_id = $1
+		RETURNING seat_id, seat_type, price_gel, price_inr, available, notes`,
 		strings.Join(sets, ", "))
+
+	logger.Log.Info(fmt.Sprintf("[update-seat-uc] Executing general UPDATE for %s with %d fields modified.", seatID, len(sets)))
 
 	// 4. Execute the update and scan the returned row
 	st := &Seat{}
@@ -95,18 +97,24 @@ func UpdateSeat(seatID string, payload []byte) (*Seat, error) {
 	); err != nil {
 		// If it's a "no rows" error, the seat was not found
 		if err == sql.ErrNoRows {
+			logger.Log.Warn(fmt.Sprintf("[update-seat-uc] General update failed for %s: Seat not found.", seatID))
 			return nil, fmt.Errorf("seat with ID %s not found", seatID)
 		}
+		logger.Log.Error(fmt.Sprintf("[update-seat-uc] Database update error for %s: %v", seatID, err))
 		return nil, fmt.Errorf("database update error: %w", err)
 	}
 
+	logger.Log.Info(fmt.Sprintf("[update-seat-uc] Seat %s updated successfully.", seatID))
 	return st, nil
 }
 
 // UpdateAvailableTx updates the available seat count within a transaction.
 func UpdateAvailableTx(tx *sql.Tx, seatID string, newAvailable int) (*Seat, error) {
+	logger.Log.Info(fmt.Sprintf("[update-seat-uc] Starting transactional availability update for ID: %s. New count: %d", seatID, newAvailable))
+
 	id, err := uuid.Parse(seatID)
 	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("[update-seat-uc] Transactional update failed for %s: Invalid UUID format.", seatID))
 		return nil, fmt.Errorf("invalid seat ID format: %w", err)
 	}
 
@@ -129,10 +137,11 @@ func UpdateAvailableTx(tx *sql.Tx, seatID string, newAvailable int) (*Seat, erro
 		&st.Available,
 		&st.Notes,
 	); err != nil {
-		// No need to check for sql.ErrNoRows here as the prior locked row query handled existence
+		logger.Log.Error(fmt.Sprintf("[update-seat-uc] Failed to scan updated row during transaction for %s: %v", seatID, err))
 		return nil, fmt.Errorf("failed to scan updated seat row: %w", err)
 	}
 	st.SeatID = seatIDUUID // Assuming SeatID in the struct is uuid.UUID
 
+	logger.Log.Info(fmt.Sprintf("[update-seat-uc] Seat %s availability updated to %d within transaction.", seatID, newAvailable))
 	return st, nil
 }
