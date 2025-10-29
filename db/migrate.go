@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS concert (
     venue TEXT NOT NULL,
     timing TEXT NOT NULL,
     seat_ids JSONB,  -- Using JSONB is recommended for storing JSON in Postgres
+    payment_ids JSONB,
     payment_details_ids JSONB,
     description TEXT
 );`
