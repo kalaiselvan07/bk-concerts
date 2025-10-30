@@ -6,14 +6,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"os"
 	"strings"
 
 	"bk-concerts/logger"
 )
 
 const resendAPI = "https://api.resend.com/emails"
-const defaultFrom = "Resend <onboarding@resend.dev>"
+const defaultFrom = "BookingX <noreply@bookingx.live>"
 
 // ResendEmail defines Resend API structure
 type ResendEmail struct {
@@ -26,7 +25,7 @@ type ResendEmail struct {
 
 // Helper: Send email via Resend
 func sendEmailResend(to, subject, htmlBody, textBody string) error {
-	apiKey := os.Getenv("RESEND_API_KEY")
+	apiKey := "re_KvZaroh9_FqxBphdHPC92bjvHjeSCcJt5"
 	if apiKey == "" {
 		logger.Log.Warn("[auth] Missing RESEND_API_KEY, mock email triggered.")
 		fmt.Printf("\n--- MOCK EMAIL ---\nTo: %s\nSubject: %s\nBody:\n%s\n-------------------\n", to, subject, htmlBody)

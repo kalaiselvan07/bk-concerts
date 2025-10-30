@@ -76,10 +76,10 @@ func RequestUserOTP(email string) (token string, role string, err error) {
 	logger.Log.Info(fmt.Sprintf("[auth] OTP saved/updated successfully. Expires at: %s", expiresAt.Format(time.RFC3339)))
 
 	// 3. Send Email (now real)
-	// if err := SendOTP(email, code); err != nil { // ⬅️ CALL THE REAL SENDER
-	// 	logger.Log.Error(fmt.Sprintf("[auth] Failed to dispatch email for %s: %v", email, err))
-	// 	return "", "", fmt.Errorf("failed to send OTP email: %w", err)
-	// }
+	if err := SendOTP(email, code); err != nil { // ⬅️ CALL THE REAL SENDER
+		logger.Log.Error(fmt.Sprintf("[auth] Failed to dispatch email for %s: %v", email, err))
+		return "", "", fmt.Errorf("failed to send OTP email: %w", err)
+	}
 	logger.Log.Info(fmt.Sprintf("[auth] OTP dispatch triggered for %s.", email))
 
 	return "", u.Role, nil

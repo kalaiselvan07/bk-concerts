@@ -2,8 +2,10 @@ package auth
 
 import (
 	// "database/sql"
+	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"bk-concerts/applications/user"
 	"bk-concerts/db"
@@ -29,29 +31,29 @@ func VerifyOTP(email, code string) (token string, role string, err error) {
 		FROM otp_codes 
 		WHERE user_email = $1 AND code = $2`
 
-	// var expiresAt time.Time
-	// var storedCode string
+	var expiresAt time.Time
+	var storedCode string
 
-	// row := db.DB.QueryRow(selectOTP, email, code)
-	// err = row.Scan(&expiresAt, &storedCode)
+	row := db.DB.QueryRow(selectOTP, email, code)
+	err = row.Scan(&expiresAt, &storedCode)
 
-	// if err != nil {
-	// 	if err == sql.ErrNoRows {
-	// 		logger.Log.Warn(fmt.Sprintf("[auth] Verification failed for %s: OTP not found in DB or code mismatch.", email))
-	// 		return "", "", errors.New("invalid OTP code")
-	// 	}
-	// 	logger.Log.Error(fmt.Sprintf("[auth] DB error retrieving OTP for %s: %v", email, err))
-	// 	return "", "", errors.New("database error during verification")
-	// }
+	if err != nil {
+		if err == sql.ErrNoRows {
+			logger.Log.Warn(fmt.Sprintf("[auth] Verification failed for %s: OTP not found in DB or code mismatch.", email))
+			return "", "", errors.New("invalid OTP code")
+		}
+		logger.Log.Error(fmt.Sprintf("[auth] DB error retrieving OTP for %s: %v", email, err))
+		return "", "", errors.New("database error during verification")
+	}
 
 	// Log successful code match before checking expiry
 	logger.Log.Info(fmt.Sprintf("[auth] OTP code matched for %s. Checking expiry...", email))
 
 	// 3. Check for Expiration
-	// if time.Now().After(expiresAt) {
-	// 	logger.Log.Warn(fmt.Sprintf("[auth] Verification failed for %s: OTP expired at %s.", email, expiresAt.Format(time.RFC3339)))
-	// 	return "", "", errors.New("OTP expired. Please request a new one")
-	// }
+	if time.Now().After(expiresAt) {
+		logger.Log.Warn(fmt.Sprintf("[auth] Verification failed for %s: OTP expired at %s.", email, expiresAt.Format(time.RFC3339)))
+		return "", "", errors.New("OTP expired. Please request a new one")
+	}
 
 	// 4. Clean up the OTP code (prevent reuse)
 	const deleteOTP = `DELETE FROM otp_codes WHERE user_email = $1`
