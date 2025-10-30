@@ -9,6 +9,7 @@ import (
 
 	"bk-concerts/applications/auth"
 	"bk-concerts/applications/concert"
+	"bk-concerts/applications/participant"
 	"bk-concerts/applications/paymentdetails"
 	"bk-concerts/db"
 	"bk-concerts/logger"
@@ -16,6 +17,13 @@ import (
 	"github.com/google/uuid"
 	"github.com/jung-kurt/gofpdf"
 )
+
+// minimal shape we want to render on ticket
+type ticketParticipant struct {
+	Name  string
+	WaNum string
+	Email string // optional
+}
 
 // ApproveBookingUC approves a booking, updates DB, and emails a ticket PDF.
 func ApproveBookingUC(bookingID string) (*Booking, error) {
@@ -74,8 +82,35 @@ func ApproveBookingUC(bookingID string) (*Booking, error) {
 			return nil, fmt.Errorf("failed to fetch payment details: %w", pErr)
 		}
 	}
-	if pd == nil {
-		logger.Log.Warn(fmt.Sprintf("[approve-booking-uc] ⚠️ Payment record was nil for ID: %v", bk.PaymentDetailsID))
+	paymentType, paymentDetails := "", ""
+	if pd != nil {
+		paymentType, paymentDetails = pd.PaymentType, pd.Details
+	}
+
+	// --- Gather Participants (Name, WaNum, optional Email) ---
+	var tParticipants []ticketParticipant
+	for idx, pid := range bk.ParticipantIDs {
+		pt, perr := participant.GetParticipant(pid)
+		if perr != nil {
+			if perr == sql.ErrNoRows {
+				logger.Log.Warn(fmt.Sprintf("[approve-booking-uc] ⚠️ Participant not found (index %d, id %s)", idx, pid))
+				continue
+			}
+			logger.Log.Warn(fmt.Sprintf("[approve-booking-uc] ⚠️ Failed to fetch participant (index %d, id %s): %v", idx, pid, perr))
+			continue
+		}
+		if pt == nil {
+			logger.Log.Warn(fmt.Sprintf("[approve-booking-uc] ⚠️ Participant returned nil (index %d, id %s)", idx, pid))
+			continue
+		}
+		tParticipants = append(tParticipants, ticketParticipant{
+			Name:  pt.Name,
+			WaNum: pt.WaNum,
+			Email: pt.Email,
+		})
+	}
+	if len(tParticipants) == 0 {
+		logger.Log.Warn("[approve-booking-uc] ⚠️ No participants resolved for this booking; PDF will omit participant section.")
 	}
 
 	// --- Update booking status ---
@@ -91,13 +126,8 @@ func ApproveBookingUC(bookingID string) (*Booking, error) {
 	}
 	logger.Log.Info(fmt.Sprintf("[approve-booking-uc] ✅ Booking %s marked APPROVED.", bookingID))
 
-	// --- Generate eTicket PDF (with concert & payment info) ---
-	paymentType, paymentDetails := "", ""
-	if pd != nil {
-		paymentType, paymentDetails = pd.PaymentType, pd.Details
-	}
-
-	pdfBytes, err := generateTicketPDF(bk, cnTitle, cnTiming, cnVenue, paymentType, paymentDetails)
+	// --- Generate eTicket PDF (with concert, payment & participants) ---
+	pdfBytes, err := generateTicketPDF(bk, cnTitle, cnTiming, cnVenue, paymentType, paymentDetails, tParticipants)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("[approve-booking-uc] ❌ Failed to generate ticket PDF: %v", err))
 	} else {
@@ -121,14 +151,19 @@ func ApproveBookingUC(bookingID string) (*Booking, error) {
 	return bk, nil
 }
 
-// --- Generate eTicket PDF (includes concert + payment info) ---
-func generateTicketPDF(bk *Booking, concertName, concertDate, concertVenue, paymentType, paymentDetails string) ([]byte, error) {
+// --- Generate eTicket PDF (includes concert + payment + participants) ---
+func generateTicketPDF(
+	bk *Booking,
+	concertName, concertDate, concertVenue,
+	paymentType, paymentDetails string,
+	participants []ticketParticipant,
+) ([]byte, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 
-	// --- Header ---
+	// Header
 	pdf.SetFont("Arial", "B", 20)
-	pdf.Cell(0, 12, "🎫 BlackTickets - eTicket")
+	pdf.Cell(0, 12, "BlackTickets - eTicket")
 	pdf.Ln(14)
 
 	pdf.SetFont("Arial", "", 12)
@@ -143,9 +178,9 @@ func generateTicketPDF(bk *Booking, concertName, concertDate, concertVenue, paym
 	pdf.Cell(0, 10, fmt.Sprintf("Total Amount: ₹%.2f", bk.TotalAmount))
 	pdf.Ln(10)
 
-	// --- Concert Info ---
+	// Concert info
 	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(0, 10, "🎵 Concert Details")
+	pdf.Cell(0, 10, "Concert Details")
 	pdf.Ln(8)
 	pdf.SetFont("Arial", "", 12)
 	if concertName != "" {
@@ -161,9 +196,9 @@ func generateTicketPDF(bk *Booking, concertName, concertDate, concertVenue, paym
 		pdf.Ln(10)
 	}
 
-	// --- Payment Info ---
+	// Payment info
 	pdf.SetFont("Arial", "B", 14)
-	pdf.Cell(0, 10, "💳 Payment Information")
+	pdf.Cell(0, 10, "Payment Information")
 	pdf.Ln(8)
 	pdf.SetFont("Arial", "", 12)
 	if paymentType != "" {
@@ -171,11 +206,31 @@ func generateTicketPDF(bk *Booking, concertName, concertDate, concertVenue, paym
 		pdf.Ln(8)
 	}
 	if paymentDetails != "" {
-		pdf.Cell(0, 10, fmt.Sprintf("Payment Details: %s", paymentDetails))
-		pdf.Ln(10)
+		pdf.MultiCell(0, 8, fmt.Sprintf("Payment Details: %s", paymentDetails), "", "", false)
+		pdf.Ln(2)
 	}
 
-	// --- Footer ---
+	// Participants
+	if len(participants) > 0 {
+		pdf.SetFont("Arial", "B", 14)
+		pdf.Cell(0, 10, "Participants")
+		pdf.Ln(8)
+		pdf.SetFont("Arial", "", 12)
+		for i, p := range participants {
+			pdf.Cell(0, 8, fmt.Sprintf("#%d  Name: %s", i+1, safe(p.Name)))
+			pdf.Ln(6)
+			pdf.Cell(0, 8, fmt.Sprintf("    WhatsApp: %s", safe(p.WaNum)))
+			pdf.Ln(6)
+			if p.Email != "" {
+				pdf.Cell(0, 8, fmt.Sprintf("    Email: %s", safe(p.Email)))
+				pdf.Ln(6)
+			}
+			pdf.Ln(2)
+		}
+		pdf.Ln(6)
+	}
+
+	// Footer
 	pdf.SetFont("Arial", "B", 14)
 	pdf.Cell(0, 10, "Thank you for booking with BlackTickets!")
 	pdf.Ln(10)
@@ -183,7 +238,7 @@ func generateTicketPDF(bk *Booking, concertName, concertDate, concertVenue, paym
 	pdf.Cell(0, 8, "Please present this e-ticket at entry. Have a great show!")
 	pdf.Ln(18)
 
-	// --- Booking Ref ---
+	// Booking Reference
 	pdf.SetFont("Courier", "B", 12)
 	pdf.MultiCell(0, 8, fmt.Sprintf("Booking Reference:\n%s", bk.BookingID.String()), "1", "L", false)
 
@@ -193,3 +248,6 @@ func generateTicketPDF(bk *Booking, concertName, concertDate, concertVenue, paym
 	}
 	return buf.Bytes(), nil
 }
+
+// safe returns a string (no nil risk in fmt)
+func safe(s string) string { return s }
