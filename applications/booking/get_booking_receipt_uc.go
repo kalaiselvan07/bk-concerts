@@ -27,7 +27,7 @@ func GetBookingReceiptUC(bookingID string) (*Booking, error) {
 	query := `
 		SELECT 
 			booking_id, booking_email, booking_status, payment_details_id,
-			receipt_image, seat_quantity, seat_id, seat_type, total_amount,
+			receipt_image, seat_quantity, seat_id, concert_id, seat_type, total_amount,
 			participant_ids, created_at
 		FROM booking
 		WHERE booking_id = $1
@@ -43,7 +43,7 @@ func GetBookingReceiptUC(bookingID string) (*Booking, error) {
 
 	if err := row.Scan(
 		&idUUID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
-		&receiptBytes, &bk.SeatQuantity, &bk.SeatID, &bk.SeatType,
+		&receiptBytes, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.SeatType,
 		&bk.TotalAmount, &participantIDsRaw, &bk.CreatedAt,
 	); err != nil {
 		if err == sql.ErrNoRows {

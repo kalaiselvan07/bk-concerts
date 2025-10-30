@@ -13,6 +13,7 @@ type Booking struct {
 	PaymentDetailsID string    `json:"paymentDetailsID"` // Should be UUID in production
 	ReceiptImage     []byte    `json:"receiptImage"`     // Stored as BYTEA/BLOB
 	SeatQuantity     int       `json:"seatQuantity"`
+	ConcertID        string    `json:"concertId"`
 	SeatID           string    `json:"seatID"`
 	SeatType         string    `json:"seatType"`
 	TotalAmount      float64   `json:"totalAmount"`

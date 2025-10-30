@@ -25,7 +25,7 @@ func GetBooking(bookingID string) (*Booking, error) {
 
 	const selectSQL = `
 		SELECT booking_id, booking_email, booking_status, payment_details_id, 
-		       receipt_image, seat_quantity, seat_id, total_amount, seat_type, 
+		       receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type, 
 		       participant_ids, created_at
 		FROM booking
 		WHERE booking_id = $1`
@@ -41,7 +41,7 @@ func GetBooking(bookingID string) (*Booking, error) {
 	// Use db.DB.QueryRow() for non-transactional read
 	err = row.Scan(
 		&bookingIDUUID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
-		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.TotalAmount, &bk.SeatType,
+		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.TotalAmount, &bk.SeatType,
 		&participantIDsJSON, &bk.CreatedAt,
 	)
 
@@ -78,7 +78,7 @@ func GetBookingTx(tx *sql.Tx, bookingID string) (*Booking, error) {
 
 	const selectSQL = `
 		SELECT booking_id, booking_email, booking_status, payment_details_id, 
-		       receipt_image, seat_quantity, seat_id, total_amount, seat_type, 
+		       receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type, 
 		       participant_ids, created_at
 		FROM booking
 		WHERE booking_id = $1`
@@ -93,7 +93,7 @@ func GetBookingTx(tx *sql.Tx, bookingID string) (*Booking, error) {
 
 	err = row.Scan(
 		&bookingIDUUID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
-		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.TotalAmount, &bk.SeatType,
+		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.TotalAmount, &bk.SeatType,
 		&participantIDsJSON, &bk.CreatedAt,
 	)
 

@@ -19,13 +19,12 @@ import (
 	"github.com/google/uuid"
 )
 
-// ---------- STRUCTS ----------
-
 type CreateBookingParams struct {
 	BookingEmail     string                 `json:"bookingEmail" validate:"required"`
 	PaymentDetailsID string                 `json:"paymentDetailsID" validate:"required"`
-	ReceiptImage     string                 `json:"receiptImage" validate:"required"`
+	ReceiptImage     string                 `json:"receiptImage" validate:"required"` // base64 from client
 	SeatQuantity     int                    `json:"seatQuantity" validate:"required"`
+	ConcertID        string                 `json:"concertID" validate:"required"`
 	SeatID           string                 `json:"seatID" validate:"required"`
 	TotalAmount      float64                `json:"totalAmount" validate:"required"`
 	Participants     []*participantsDetails `json:"participants"`
@@ -39,8 +38,6 @@ type participantsDetails struct {
 
 var ErrNotEnoughSeats = errors.New("not enough seats available")
 
-// ---------- MAIN USE CASE ----------
-
 func BookNow(payload []byte) (*Booking, error) {
 	logger.Log.Info("[create-booking-uc] 🟢 Starting booking process")
 
@@ -50,7 +47,6 @@ func BookNow(payload []byte) (*Booking, error) {
 		return nil, fmt.Errorf("%s: unmarshal error: %w", CANCELLED, err)
 	}
 
-	// Start DB transaction
 	tx, err := db.DB.BeginTx(context.Background(), nil)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("[create-booking-uc] ❌ Failed to start DB transaction: %v", err))
@@ -58,47 +54,46 @@ func BookNow(payload []byte) (*Booking, error) {
 	}
 	defer tx.Rollback()
 
-	// Step 1: Validate & Deduct Seats
 	updatedSeat, err := validateAndUpdateSeatTx(tx, p.SeatID, p.SeatQuantity)
 	if err != nil {
 		return nil, fmt.Errorf("%s: seat update failed: %w", CANCELLED, err)
 	}
 
-	// Step 2: Save Participants
 	participantIDs, err := addParticipantsTx(tx, p.Participants)
 	if err != nil {
 		return nil, fmt.Errorf("%s: adding participants failed: %w", CANCELLED, err)
 	}
 
-	// Step 3: Create Booking
 	bk, err := newBookingTx(tx, &p, updatedSeat.SeatType, participantIDs)
 	if err != nil {
 		return nil, fmt.Errorf("%s: booking insertion failed: %w", CANCELLED, err)
 	}
 
-	// Step 4: Commit
 	if err := tx.Commit(); err != nil {
 		logger.Log.Error(fmt.Sprintf("[create-booking-uc] ❌ Commit failed: %v", err))
 		return nil, fmt.Errorf("%s: failed to commit transaction: %w", CANCELLED, err)
 	}
 	logger.Log.Info(fmt.Sprintf("[create-booking-uc] ✅ Booking committed successfully: %v", bk.BookingID))
 
-	// Step 5: Notify Admin (Async)
-	adminEmail := os.Getenv("SMTP_USER")
+	// ---- Admin notification (non-blocking) ----
+	adminEmail := os.Getenv("ADMIN_EMAIL")
 	if adminEmail == "" {
 		logger.Log.Warn("[create-booking-uc] ⚠️ Admin email not configured; skipping notification")
 		return bk, nil
 	}
 
-	encodedReceipt := base64.StdEncoding.EncodeToString(bk.ReceiptImage)
+	// Use the ORIGINAL base64 from the request to avoid any re-encoding surprises.
+	receiptBase64 := p.ReceiptImage
+
 	go func() {
+		logger.Log.Info(fmt.Sprintf("[create-booking-uc] ✉️ Admin email: %s", adminEmail))
 		err := auth.SendBookingNotificationEmail(
 			adminEmail,
 			bk.BookingID.String(),
 			bk.BookingEmail,
 			bk.SeatType,
 			bk.TotalAmount,
-			encodedReceipt,
+			receiptBase64,
 		)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("[create-booking-uc] ❌ Failed to send admin notification: %v", err))
@@ -110,7 +105,7 @@ func BookNow(payload []byte) (*Booking, error) {
 	return bk, nil
 }
 
-// ---------- HELPERS ----------
+// ---------- helpers ----------
 
 func validateAndUpdateSeatTx(tx *sql.Tx, seatID string, quantity int) (*seat.Seat, error) {
 	currentSeat, err := seat.GetSeatForUpdateTx(tx, seatID)
@@ -165,13 +160,14 @@ func newBookingTx(tx *sql.Tx, p *CreateBookingParams, seatType string, participa
 	}
 
 	const insertSQL = `
-        INSERT INTO booking (
-            booking_id, booking_email, booking_status, payment_details_id, 
-            receipt_image, seat_quantity, seat_id, total_amount, seat_type, 
-            participant_ids, created_at
-        )
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)
-    `
+	INSERT INTO booking (
+		booking_id, booking_email, booking_status, payment_details_id,
+		receipt_image, seat_quantity, seat_id, concert_id, total_amount,
+		seat_type, participant_ids, created_at
+	)
+	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+`
+
 	_, err := tx.Exec(
 		insertSQL,
 		bk.BookingID,
@@ -181,11 +177,13 @@ func newBookingTx(tx *sql.Tx, p *CreateBookingParams, seatType string, participa
 		bk.ReceiptImage,
 		bk.SeatQuantity,
 		bk.SeatID,
+		p.ConcertID,
 		bk.TotalAmount,
 		bk.SeatType,
 		participantIDsJSON,
 		bk.CreatedAt,
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("transactional insert error: %w", err)
 	}

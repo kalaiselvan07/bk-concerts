@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS booking (
     receipt_image BYTEA,
     seat_quantity INTEGER NOT NULL,
     seat_id TEXT NOT NULL,
+    concert_id TEXT REFERENCES concert(concert_id),
     seat_type TEXT NOT NULL,
     total_amount REAL NOT NULL,
     participant_ids JSONB,

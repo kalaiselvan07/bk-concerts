@@ -6,38 +6,49 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"bk-concerts/logger"
 )
 
 const resendAPI = "https://api.resend.com/emails"
-const defaultFrom = "BookingX <noreply@bookingx.live>"
+const defaultFrom = "BlackticketEntertainments <noreply@bookingx.live>"
 
-// ResendEmail defines Resend API structure
-type ResendEmail struct {
-	From    string `json:"from"`
-	To      string `json:"to"`
-	Subject string `json:"subject"`
-	Html    string `json:"html"`
-	Text    string `json:"text,omitempty"`
+// ---- Resend payloads ----
+
+type Attachment struct {
+	Filename string `json:"filename"`
+	// Resend expects base64-encoded content
+	Content string `json:"content"`
 }
 
-// Helper: Send email via Resend
-func sendEmailResend(to, subject, htmlBody, textBody string) error {
-	apiKey := "re_KvZaroh9_FqxBphdHPC92bjvHjeSCcJt5"
+type ResendEmail struct {
+	From        string       `json:"from"`
+	To          string       `json:"to"`
+	Subject     string       `json:"subject"`
+	Html        string       `json:"html"`
+	Text        string       `json:"text,omitempty"`
+	Attachments []Attachment `json:"attachments,omitempty"`
+}
+
+// single helper for sending (optionally with attachments)
+func sendEmailResend(to, subject, htmlBody, textBody string, atts ...Attachment) error {
+	apiKey := os.Getenv("RESEND_API_KEY")
 	if apiKey == "" {
 		logger.Log.Warn("[auth] Missing RESEND_API_KEY, mock email triggered.")
-		fmt.Printf("\n--- MOCK EMAIL ---\nTo: %s\nSubject: %s\nBody:\n%s\n-------------------\n", to, subject, htmlBody)
+		fmt.Printf("\n--- MOCK EMAIL ---\nTo: %s\nSubject: %s\nBody:\n%s\nAttachments: %d\n-------------------\n",
+			to, subject, htmlBody, len(atts))
 		return nil
 	}
 
 	payload := ResendEmail{
-		From:    defaultFrom,
-		To:      to,
-		Subject: subject,
-		Html:    htmlBody,
-		Text:    textBody,
+		From:        defaultFrom,
+		To:          to,
+		Subject:     subject,
+		Html:        htmlBody,
+		Text:        textBody,
+		Attachments: atts,
 	}
 
 	body, _ := json.Marshal(payload)
@@ -59,7 +70,9 @@ func sendEmailResend(to, subject, htmlBody, textBody string) error {
 	return nil
 }
 
-// 🔹 SendOTP sends login OTP email
+// ---------- Public API ----------
+
+// OTP
 func SendOTP(toEmail, code string) error {
 	logger.Log.Info(fmt.Sprintf("[auth] Sending OTP email to %s", toEmail))
 	html := fmt.Sprintf(`
@@ -71,7 +84,7 @@ func SendOTP(toEmail, code string) error {
 	return sendEmailResend(toEmail, "Your BlackTickets Login OTP", html, "Your OTP code is "+code)
 }
 
-// 🔹 SendBookingNotificationEmail
+// Admin notification (includes inline preview + attachment)
 func SendBookingNotificationEmail(toEmail, bookingID, userEmail, seatType string, total float64, receiptBase64 string) error {
 	html := fmt.Sprintf(`
 		<h2>🎟️ New Booking Notification</h2>
@@ -80,15 +93,16 @@ func SendBookingNotificationEmail(toEmail, bookingID, userEmail, seatType string
 		<p><b>Seat Type:</b> %s</p>
 		<p><b>Total:</b> ₹%.2f</p>
 		<p>Status: <b style="color:#007bff;">Pending Verification</b></p>
-		<p>Receipt:</p>
+		<p>Receipt (preview):</p>
 		<img src="data:image/png;base64,%s" style="max-width:500px;border-radius:8px;" />
 	`, bookingID, userEmail, seatType, total, receiptBase64)
 
-	return sendEmailResend(toEmail, fmt.Sprintf("🆕 New Booking Created [%s]", bookingID), html, "")
+	att := Attachment{Filename: "receipt.png", Content: receiptBase64}
+	return sendEmailResend(toEmail, fmt.Sprintf("🆕 New Booking Created [%s]", bookingID), html, "", att)
 }
 
-// 🔹 SendReceiptReuploadNotification
-func SendReceiptReuploadNotification(toEmail, bookingID, userEmail, seatType string, amount float64, base64Receipt, approveURL, rejectURL string) error {
+// Re-upload notification (with Approve/Reject + attachment)
+func SendReceiptReuploadNotification(toEmail, bookingID, userEmail, seatType string, amount float64, base64Receipt string) error {
 	html := fmt.Sprintf(`
 		<h2>🔄 Receipt Re-upload Alert</h2>
 		<p>User <b>%s</b> re-uploaded payment receipt for:</p>
@@ -97,17 +111,16 @@ func SendReceiptReuploadNotification(toEmail, bookingID, userEmail, seatType str
 			<li><b>Seat Type:</b> %s</li>
 			<li><b>Amount:</b> ₹%.2f</li>
 		</ul>
-		<p>
-			<a href="%s" style="background:#28a745;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;">✅ Approve</a>
-			<a href="%s" style="background:#dc3545;color:#fff;padding:10px 16px;border-radius:6px;text-decoration:none;margin-left:8px;">❌ Reject</a>
-		</p>
-		<img src="data:image/png;base64,%s" style="max-width:450px;margin-top:15px;border-radius:6px;" />
-	`, userEmail, bookingID, seatType, amount, approveURL, rejectURL, base64Receipt)
 
-	return sendEmailResend(toEmail, fmt.Sprintf("🔄 Receipt Re-uploaded [%s]", bookingID), html, "")
+		<p>Receipt (preview):</p>
+		<img src="data:image/png;base64,%s" style="max-width:450px;margin-top:15px;border-radius:6px;" />
+	`, userEmail, bookingID, seatType, amount, base64Receipt)
+
+	att := Attachment{Filename: "receipt.png", Content: base64Receipt}
+	return sendEmailResend(toEmail, fmt.Sprintf("🔄 Receipt Re-uploaded [%s]", bookingID), html, "", att)
 }
 
-// 🔹 SendBookingVerificationMail
+// Status updates
 func SendBookingVerificationMail(toEmail, status, bookingID, base64Receipt, note string) error {
 	logger.Log.Info(fmt.Sprintf("[auth] Sending booking verification email (Status: %s) to %s", status, toEmail))
 	statusUpper := strings.ToUpper(status)
@@ -146,16 +159,20 @@ func SendBookingVerificationMail(toEmail, status, bookingID, base64Receipt, note
 	return sendEmailResend(toEmail, subject, html, "")
 }
 
-// 🔹 SendBookingApprovalMail — sends PDF ticket as base64 inline attachment
+// Approval mail — attach the PDF e-ticket
 func SendBookingApprovalMail(toEmail, bookingID, seatType string, qty int, total float64, pdfBytes []byte) error {
 	pdfBase64 := base64.StdEncoding.EncodeToString(pdfBytes)
+
 	html := fmt.Sprintf(`
 		<h2>✅ Booking Approved!</h2>
 		<p>Your booking <b>%s</b> has been approved.</p>
 		<p>Seat Type: %s<br>Quantity: %d<br>Total: ₹%.2f</p>
-		<p>Your e-ticket (PDF) is attached below.</p>
-		<embed src="data:application/pdf;base64,%s" width="100%%" height="600px" />
-	`, bookingID, seatType, qty, total, pdfBase64)
+		<p>Your e-ticket PDF is attached to this email.</p>
+	`, bookingID, seatType, qty, total)
 
-	return sendEmailResend(toEmail, fmt.Sprintf("🎟️ Your BlackTickets e-Ticket [%s]", bookingID), html, "")
+	att := Attachment{
+		Filename: fmt.Sprintf("e-ticket-%s.pdf", bookingID),
+		Content:  pdfBase64,
+	}
+	return sendEmailResend(toEmail, fmt.Sprintf("🎟️ Your BlackTickets e-Ticket [%s]", bookingID), html, "", att)
 }

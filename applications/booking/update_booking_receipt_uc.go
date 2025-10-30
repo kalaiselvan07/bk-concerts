@@ -107,7 +107,7 @@ func UpdateBookingReceiptUC(bookingID string, payload []byte) (*Booking, error) 
 	logger.Log.Info(fmt.Sprintf("[update-booking-receipt-uc] ✅ DB updated and committed for booking %s", bookingID))
 
 	// Step 8️⃣ Send Admin Notification Email (no approve/reject)
-	adminEmail := os.Getenv("SMTP_USER")
+	adminEmail := os.Getenv("ADMIN_EMAIL")
 	if adminEmail == "" {
 		logger.Log.Warn("[update-booking-receipt-uc] ⚠️ ADMIN_EMAIL not set — skipping notification.")
 		return &bk, nil
@@ -116,7 +116,7 @@ func UpdateBookingReceiptUC(bookingID string, payload []byte) (*Booking, error) 
 	encodedReceipt := base64.StdEncoding.EncodeToString(bk.ReceiptImage)
 
 	go func() {
-		err := auth.SendBookingNotificationEmail(
+		err := auth.SendReceiptReuploadNotification(
 			adminEmail,
 			bk.BookingID.String(),
 			bk.BookingEmail,

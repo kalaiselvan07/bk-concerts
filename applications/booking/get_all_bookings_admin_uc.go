@@ -16,7 +16,7 @@ func GetAllBookingsAdminUC() ([]*Booking, error) {
 	query := `
 		SELECT 
 			booking_id, booking_email, booking_status, payment_details_id,
-			receipt_image, seat_quantity, seat_id, total_amount, seat_type,
+			receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type,
 			participant_ids, created_at
 		FROM booking
 		ORDER BY created_at DESC
@@ -40,7 +40,7 @@ func GetAllBookingsAdminUC() ([]*Booking, error) {
 
 		if err := rows.Scan(
 			&bk.BookingID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
-			&receiptBytes, &bk.SeatQuantity, &bk.SeatID, &bk.TotalAmount,
+			&receiptBytes, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.TotalAmount,
 			&bk.SeatType, &participantIDsRaw, &bk.CreatedAt,
 		); err != nil {
 			logger.Log.Warn(fmt.Sprintf("[get-all-bookings-admin-uc] Row scan failed: %v", err))
