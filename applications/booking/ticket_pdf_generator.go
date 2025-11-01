@@ -98,7 +98,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.Cell(0, 8, fmt.Sprintf("Quantity: %d", bk.SeatQuantity))
 	pdf.Ln(7)
 	pdf.SetX(leftX)
-	pdf.Cell(0, 8, fmt.Sprintf("Total Paid: ₹%.2f", bk.TotalAmount))
+	pdf.Cell(0, 8, fmt.Sprintf("Total Paid: %.2f INR", bk.TotalAmount))
 	pdf.Ln(10)
 
 	// Payment Info
