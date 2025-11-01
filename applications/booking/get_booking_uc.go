@@ -7,8 +7,6 @@ import (
 
 	"bk-concerts/db"     // Assumes global DB instance
 	"bk-concerts/logger" // ⬅️ Assuming this import path
-
-	"github.com/google/uuid"
 )
 
 // NOTE: Booking struct definition is assumed here
@@ -16,12 +14,6 @@ import (
 // GetBooking retrieves a single booking record for general API reading (non-transactional).
 func GetBooking(bookingID string) (*Booking, error) {
 	logger.Log.Info(fmt.Sprintf("[get-booking-uc] Starting standard read for BookingID: %s", bookingID))
-
-	id, err := uuid.Parse(bookingID)
-	if err != nil {
-		logger.Log.Warn(fmt.Sprintf("[get-booking-uc] Read failed for %s: Invalid UUID format.", bookingID))
-		return nil, fmt.Errorf("invalid booking ID format: %w", err)
-	}
 
 	const selectSQL = `
 		SELECT booking_id, booking_email, booking_status, payment_details_id, 
@@ -31,16 +23,15 @@ func GetBooking(bookingID string) (*Booking, error) {
 		WHERE booking_id = $1`
 
 	logger.Log.Info(fmt.Sprintf("[get-booking-uc] Executing standard DB query for ID: %s", bookingID))
-	row := db.DB.QueryRow(selectSQL, id)
+	row := db.DB.QueryRow(selectSQL, bookingID)
 
 	bk := &Booking{}
 	var receiptImage []byte
 	var participantIDsJSON []byte
-	var bookingIDUUID uuid.UUID
 
 	// Use db.DB.QueryRow() for non-transactional read
-	err = row.Scan(
-		&bookingIDUUID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
+	err := row.Scan(
+		&bk.BookingID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
 		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.TotalAmount, &bk.SeatType,
 		&participantIDsJSON, &bk.CreatedAt,
 	)
@@ -54,7 +45,6 @@ func GetBooking(bookingID string) (*Booking, error) {
 		return nil, fmt.Errorf("database query error: %w", err)
 	}
 
-	bk.BookingID = bookingIDUUID
 	bk.ReceiptImage = receiptImage
 
 	if err := json.Unmarshal(participantIDsJSON, &bk.ParticipantIDs); err != nil {
@@ -70,12 +60,6 @@ func GetBooking(bookingID string) (*Booking, error) {
 func GetBookingTx(tx *sql.Tx, bookingID string) (*Booking, error) {
 	logger.Log.Info(fmt.Sprintf("[get-booking-uc] Starting transactional read for BookingID: %s", bookingID))
 
-	id, err := uuid.Parse(bookingID)
-	if err != nil {
-		logger.Log.Warn(fmt.Sprintf("[get-booking-uc] Transactional read failed for %s: Invalid UUID format.", bookingID))
-		return nil, fmt.Errorf("invalid booking ID format: %w", err)
-	}
-
 	const selectSQL = `
 		SELECT booking_id, booking_email, booking_status, payment_details_id, 
 		       receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type, 
@@ -86,13 +70,12 @@ func GetBookingTx(tx *sql.Tx, bookingID string) (*Booking, error) {
 	bk := &Booking{}
 	var receiptImage []byte
 	var participantIDsJSON []byte
-	var bookingIDUUID uuid.UUID
 
 	// Use tx.QueryRow()
-	row := tx.QueryRow(selectSQL, id)
+	row := tx.QueryRow(selectSQL, bookingID)
 
-	err = row.Scan(
-		&bookingIDUUID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
+	err := row.Scan(
+		&bk.BookingID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
 		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.TotalAmount, &bk.SeatType,
 		&participantIDsJSON, &bk.CreatedAt,
 	)
@@ -106,7 +89,6 @@ func GetBookingTx(tx *sql.Tx, bookingID string) (*Booking, error) {
 		return nil, fmt.Errorf("transactional query error: %w", err)
 	}
 
-	bk.BookingID = bookingIDUUID
 	bk.ReceiptImage = receiptImage
 
 	if err := json.Unmarshal(participantIDsJSON, &bk.ParticipantIDs); err != nil {
