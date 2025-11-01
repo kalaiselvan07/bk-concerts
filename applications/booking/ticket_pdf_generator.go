@@ -2,10 +2,13 @@ package booking
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 
 	"bk-concerts/applications/concert"
+	"bk-concerts/applications/participant"
 	"bk-concerts/applications/paymentdetails"
+	"bk-concerts/logger"
 
 	"github.com/jung-kurt/gofpdf"
 )
@@ -28,12 +31,15 @@ type paymentInfo struct {
 }
 
 // GenerateTicketPDF creates the e-ticket PDF bytes for email attachment.
-func GenerateTicketPDF(
-	bk *Booking,
-	cn *concert.Concert,
-	pd *paymentdetails.PaymentDetails,
-	participants []ticketParticipant,
-) ([]byte, error) {
+func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
+	// --- Fetch Booking ---
+	bk, err := GetBooking(bookingID)
+	if err != nil || bk == nil {
+		return nil, nil, fmt.Errorf("booking not found: %w", err)
+	}
+
+	// --- Fetch dependent data ---
+	cn, pd, participants := fetchBookingDependencies(bk)
 
 	var ci concertInfo
 	if cn != nil {
@@ -126,7 +132,42 @@ func GenerateTicketPDF(
 
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return buf.Bytes(), nil
+	return bk, buf.Bytes(), nil
+}
+
+// fetchBookingDependencies gathers concert, payment, and participants data.
+func fetchBookingDependencies(bk *Booking) (
+	concertDetails *concert.Concert,
+	paymentInfo *paymentdetails.PaymentDetails,
+	participants []ticketParticipant) {
+	// --- Concert ---
+	cn, err := concert.GetConcert(bk.ConcertID)
+	if err != nil && err != sql.ErrNoRows {
+		logger.Log.Warn(fmt.Sprintf("concert fetch error: %v", err))
+	}
+	concertDetails = cn
+
+	// --- Payment ---
+	pd, pErr := paymentdetails.GetPayment(bk.PaymentDetailsID)
+	if pErr != nil && pErr != sql.ErrNoRows {
+		logger.Log.Warn(fmt.Sprintf("payment fetch error: %v", pErr))
+	}
+	paymentInfo = pd
+
+	// --- Participants ---
+	for _, pid := range bk.ParticipantIDs {
+		pt, err := participant.GetParticipant(pid)
+		if err != nil || pt == nil {
+			logger.Log.Warn(fmt.Sprintf("participant fetch failed for ID: %s, %v", pid, err))
+			continue
+		}
+		participants = append(participants, ticketParticipant{
+			Name:  pt.Name,
+			WaNum: pt.WaNum,
+			Email: pt.Email,
+		})
+	}
+	return
 }
