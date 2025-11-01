@@ -16,7 +16,7 @@ import (
 // CreateParticipantParams is used for the creation payload.
 type CreateParticipantParams struct {
 	Name  string `json:"name" validate:"required"`
-	WaNum string `json:"wpNum" validate:"required"`
+	WaNum string `json:"waNum" validate:"required"`
 	Email string `json:"email,omitempty"`
 }
 

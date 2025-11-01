@@ -32,7 +32,7 @@ type CreateBookingParams struct {
 
 type participantsDetails struct {
 	Name  string `json:"name" validate:"required"`
-	WaNum string `json:"wpNum" validate:"required"`
+	WaNum string `json:"waNum" validate:"required"`
 	Email string `json:"email,omitempty"`
 }
 

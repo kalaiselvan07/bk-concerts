@@ -15,7 +15,7 @@ import (
 // UpdateParticipantParams defines fields that can be optionally updated.
 type UpdateParticipantParams struct {
 	Name     string `json:"name,omitempty"`
-	WaNum    string `json:"wpNum,omitempty"`
+	WaNum    string `json:"waNum,omitempty"`
 	Email    string `json:"email,omitempty"`
 	Attended *bool  `json:"attended,omitempty"` // Use pointer to differentiate false from omitted
 }
