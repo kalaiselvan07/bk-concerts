@@ -8,6 +8,7 @@ import (
 
 	"bk-concerts/applications/participant"
 	"bk-concerts/applications/paymentdetails"
+	"bk-concerts/applications/seat"
 	"bk-concerts/logger"
 
 	"github.com/jung-kurt/gofpdf"
@@ -51,6 +52,12 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	if err != nil || bk == nil {
 		return nil, nil, fmt.Errorf("booking not found: %w", err)
 	}
+
+	st, err := seat.GetSeat(bk.SeatID)
+	if err != nil || st == nil {
+		return nil, nil, fmt.Errorf("seat not found: %w", err)
+	}
+	gelAmount := float64(bk.SeatQuantity) * st.PriceGel
 
 	// --- Fetch Payment Info ---
 	pd, _ := paymentdetails.GetPayment(bk.PaymentDetailsID)
@@ -147,7 +154,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 
 	pdf.SetX(leftX + 5)
 	pdf.Cell(60, 8, "Total Paid")
-	pdf.Cell(0, 8, fmt.Sprintf(": ₹%.2f", bk.TotalAmount))
+	pdf.Cell(0, 8, fmt.Sprintf(": %.2f INR / %.2f GEL", bk.TotalAmount, gelAmount))
 
 	// --- Logo beside Booking Details ---
 	if _, err := os.Stat(logoPath); err == nil {
