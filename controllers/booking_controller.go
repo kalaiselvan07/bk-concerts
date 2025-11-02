@@ -229,16 +229,27 @@ func GetAllBookingsAdminController(c echo.Context) error {
 	return c.JSON(http.StatusOK, bookings)
 }
 
-// 2️⃣ Fetch all pending bookings (awaiting verification)
-func GetPendingBookingsController(c echo.Context) error {
-	logger.Log.Info("[booking-controller] Fetching all pending bookings (Admin)")
-	bookings, err := booking.GetPendingBookingsUC()
+func GetAllBookingsByConcertIDController(c echo.Context) error {
+	// 1. Get the user's email from the context (set by JWTAuthMiddleware)
+	concertID := c.Param("concertID")
+	status := c.Param("status")
+
+	logger.Log.Info(fmt.Sprintf("[booking] Fetching booking history for concertID: %s", concertID))
+
+	// 2. Call the use case, passing the user's email for filtering
+	bookingsList, err := booking.GetAllBookingsByConcertID(concertID, status)
+
 	if err != nil {
-		logger.Log.Error(fmt.Sprintf("[booking-controller] Failed to fetch pending bookings: %v", err))
-		return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Failed to fetch pending bookings"})
+		logger.Log.Error(fmt.Sprintf("[booking] Error fetching booking history for %s: %v", concertID, err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to retrieve booking data: " + err.Error(),
+		})
 	}
 
-	return c.JSON(http.StatusOK, bookings)
+	logger.Log.Info(fmt.Sprintf("[booking] Successfully retrieved %d bookings for %s.", len(bookingsList), concertID))
+
+	// 3. Return the filtered list
+	return c.JSON(http.StatusOK, bookingsList)
 }
 
 // VerifyBookingController handles PATCH /admin/bookings/:bookingID/verify?action=approve|reject
@@ -282,4 +293,57 @@ func VerifyBookingController(c echo.Context) error {
 		logger.Log.Warn(fmt.Sprintf("[booking-controller] Invalid action %q for booking %s", action, bookingID))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid action; must be approve or reject"})
 	}
+}
+
+func UpdateParticipantBookingReceiptController(c echo.Context) error {
+	bookingID := c.Param("bookingID")
+
+	// Read request body
+	payload, err := io.ReadAll(c.Request().Body)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Failed to read payload for booking %s: %v", bookingID, err))
+		return c.JSON(http.StatusBadRequest, map[string]string{
+			"error": "Invalid request payload.",
+		})
+	}
+
+	// Call use case
+	updatedBooking, err := booking.UpdateBookingReceiptUC(bookingID, payload)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Failed to update receipt for booking %s: %v", bookingID, err))
+
+		switch {
+		case strings.Contains(err.Error(), "invalid booking ID"):
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid booking ID."})
+		case strings.Contains(err.Error(), "invalid base64"):
+			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid receipt image format."})
+		case strings.Contains(err.Error(), "not found"):
+			return c.JSON(http.StatusNotFound, map[string]string{"error": "Booking not found."})
+		default:
+			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Receipt update failed: " + err.Error()})
+		}
+	}
+
+	logger.Log.Info(fmt.Sprintf("[booking] Receipt updated successfully for booking %s.", bookingID))
+	return c.JSON(http.StatusOK, updatedBooking)
+}
+
+func GetAllParicipantsByBookingIDIDController(c echo.Context) error {
+	// 1. Get the user's email from the context (set by JWTAuthMiddleware)
+	bookingID := c.Param("bookingID")
+	logger.Log.Info(fmt.Sprintf("[booking] Fetching booking history for bookingID: %s", bookingID))
+
+	// 2. Call the use case, passing the user's email for filtering
+	participants, err := booking.GetAllParticipantByBookingID(bookingID)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Error fetching participants history for %s: %v", bookingID, err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to retrieve paticipants data: " + err.Error(),
+		})
+	}
+
+	logger.Log.Info(fmt.Sprintf("[booking] Successfully retrieved %d participants for %s.", len(participants), bookingID))
+
+	// 3. Return the filtered list
+	return c.JSON(http.StatusOK, participants)
 }

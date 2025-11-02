@@ -143,10 +143,12 @@ func main() {
 	r.GET("/bookings/:bookingID", controllers.GetBookingController)
 	r.PATCH("/bookings/:bookingID/receipt", controllers.UpdateBookingReceiptController)
 	r.GET("/bookings/:bookingID/receipt", controllers.GetBookingReceiptController)
+	r.GET("/bookings/participants-details/:bookingID", controllers.GetAllParicipantsByBookingIDIDController)
+	// admin.PATCH("/bookings/participants-details/:bookingID", controllers.)
 	admin.PUT("/bookings/:bookingID", controllers.UpdateBookingController)
 	admin.DELETE("/bookings/:bookingID", controllers.DeleteBookingController)
 	admin.GET("/bookings", controllers.GetAllBookingsAdminController)
-	admin.GET("/bookings/pending", controllers.GetPendingBookingsController)
+	admin.GET("/bookings/:concertID/:status", controllers.GetAllBookingsByConcertIDController)
 	admin.PATCH("/bookings/:bookingID/verify", controllers.VerifyBookingController)
 
 	logger.Log.Info("[router] Admin: Booking Update/Delete configured.")

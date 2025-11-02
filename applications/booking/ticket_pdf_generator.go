@@ -2,10 +2,11 @@ package booking
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
 	"os"
+	"path/filepath"
 
+	"bk-concerts/applications/participant"
 	"bk-concerts/applications/paymentdetails"
 	"bk-concerts/logger"
 
@@ -13,131 +14,224 @@ import (
 	qrcode "github.com/skip2/go-qrcode"
 )
 
-type ticketParticipant struct {
-	Name  string
-	WaNum string
-	Email string
-}
-
 type paymentInfo struct {
 	Type    string
 	Details string
 }
 
-// GenerateTicketPDF creates a single-page eTicket with a predesigned poster and black bottom half.
+// SafeAddImage safely adds an image with automatic format detection.
+func SafeAddImage(pdf *gofpdf.Fpdf, path string, x, y, width float64, readDpi bool) {
+	if _, err := os.Stat(path); err != nil {
+		logger.Log.Warn(fmt.Sprintf("[generate-ticket-uc] Image not found: %s", path))
+		return
+	}
+
+	ext := filepath.Ext(path)
+	imgType := ""
+	switch ext {
+	case ".png", ".PNG":
+		imgType = "PNG"
+	case ".jpg", ".jpeg", ".JPG", ".JPEG":
+		imgType = "JPG"
+	default:
+		logger.Log.Warn(fmt.Sprintf("[generate-ticket-uc] Unknown image format: %s", path))
+		return
+	}
+
+	pdf.ImageOptions(path, x, y, width, 0, false,
+		gofpdf.ImageOptions{ImageType: imgType, ReadDpi: readDpi}, 0, "")
+}
+
+// GenerateTicketPDF creates an elite e-ticket design with structured layout.
 func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
+	logger.Log.Info(fmt.Sprintf("[generate-ticket-uc] Generating ticket for bookingID: %s", bookingID))
+
 	// --- Fetch Booking ---
 	bk, err := GetBooking(bookingID)
 	if err != nil || bk == nil {
 		return nil, nil, fmt.Errorf("booking not found: %w", err)
 	}
 
-	// fetch payment details
-	pd, pErr := paymentdetails.GetPayment(bk.PaymentDetailsID)
-	if pErr != nil && pErr != sql.ErrNoRows {
-		logger.Log.Warn(fmt.Sprintf("payment fetch error: %v", pErr))
-	}
-
+	// --- Fetch Payment Info ---
+	pd, _ := paymentdetails.GetPayment(bk.PaymentDetailsID)
 	var pay paymentInfo
 	if pd != nil {
 		pay = paymentInfo{Type: pd.PaymentType, Details: pd.Details}
 	}
 
-	posterPath := "resources/poster.jpg"
+	// --- Fetch Participants ---
+	var participants []*participant.Participant
+	for _, pid := range bk.ParticipantIDs {
+		p, err := participant.GetParticipant(pid)
+		if err == nil && p != nil {
+			participants = append(participants, p)
+		}
+	}
 
-	// --- Initialize PDF ---
+	posterPath := "resources/asal.jpg"
+	logoPath := "resources/whitelogo.png"
+
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 	pdf.SetAutoPageBreak(false, 0)
 	pdf.SetMargins(0, 0, 0)
 
-	// --- Top Half: Poster ---
-	if _, err := os.Stat(posterPath); err == nil {
-		pdf.ImageOptions(posterPath, 0, 0, 210, 145, false,
-			gofpdf.ImageOptions{ImageType: "JPG", ReadDpi: true}, 0, "")
-	} else {
-		fmt.Println("⚠️ Poster not found, skipping top half.")
-	}
+	// --- Poster Banner ---
+	SafeAddImage(pdf, posterPath, 0, 0, 210, true)
 
-	// --- Bottom Half: Ticket Section ---
-	startY := 145.0
+	// --- QR Code ---
+	qrURL := fmt.Sprintf("https://bkentertainments.vercel.app/concerts/participants/?bookingID=%s", bk.BookingID)
+	qrBytes, _ := qrcode.Encode(qrURL, qrcode.Medium, 512)
+	qrX, qrY, qrSize := 170.0, 17.0, 35.0
+	pdf.RegisterImageOptionsReader("qr",
+		gofpdf.ImageOptions{ImageType: "png"}, bytes.NewReader(qrBytes))
+	pdf.ImageOptions("qr", qrX, qrY, qrSize, qrSize, false,
+		gofpdf.ImageOptions{ImageType: "png"}, 0, "")
+
+	// --- QR Caption ---
+	pdf.SetY(qrY + qrSize + 5)
+	pdf.SetX(qrX - 6)
+	pdf.SetFont("Helvetica", "I", 9)
+	pdf.SetTextColor(210, 210, 210)
+	pdf.CellFormat(45, 5, "Scan QR for Participant Details", "", 0, "C", false, 0, "")
+
+	// --- Black Ticket Section ---
+	startY := 68.0
 	pdf.SetFillColor(0, 0, 0)
-	pdf.Rect(0, startY, 210, 152, "F")
+	pdf.Rect(0, startY, 210, 212, "F")
 
 	// --- Header ---
 	pdf.SetTextColor(255, 255, 255)
 	pdf.SetFont("Helvetica", "B", 20)
-	pdf.SetXY(20, startY+10)
+	pdf.SetXY(20, startY+8)
 	pdf.Cell(0, 10, "BLACKTICKETS OFFICIAL e-TICKET")
 
 	// Accent line
 	pdf.SetDrawColor(216, 27, 96)
 	pdf.SetLineWidth(0.8)
-	pdf.Line(20, startY+22, 190, startY+22)
+	pdf.Line(20, startY+20, 190, startY+20)
 
-	// --- Left Column: Booking + Payment Details ---
+	// --- Booking Details (Enhanced Card Layout) ---
 	leftX := 20.0
-	pdf.SetFont("Helvetica", "B", 14)
+	pdf.SetFont("Helvetica", "B", 15)
 	pdf.SetTextColor(216, 27, 96)
-	pdf.SetXY(leftX, startY+35)
+	pdf.SetXY(leftX, startY+30)
 	pdf.Cell(0, 8, "BOOKING DETAILS")
 
-	pdf.Ln(10)
-	pdf.SetFont("Helvetica", "", 12)
-	pdf.SetTextColor(230, 230, 230)
-	pdf.SetX(leftX)
-	pdf.Cell(0, 8, fmt.Sprintf("Booking ID: %s", bk.BookingID))
-	pdf.Ln(7)
-	pdf.SetX(leftX)
-	pdf.Cell(0, 8, fmt.Sprintf("Email: %s", bk.BookingEmail))
-	pdf.Ln(7)
-	pdf.SetX(leftX)
-	pdf.Cell(0, 8, fmt.Sprintf("Seat Type: %s", bk.SeatType))
-	pdf.Ln(7)
-	pdf.SetX(leftX)
-	pdf.Cell(0, 8, fmt.Sprintf("Quantity: %d", bk.SeatQuantity))
-	pdf.Ln(7)
-	pdf.SetX(leftX)
-	pdf.Cell(0, 8, fmt.Sprintf("Total Paid: %.2f INR", bk.TotalAmount))
-	pdf.Ln(10)
+	// Card Background
+	pdf.SetFillColor(15, 15, 15)
+	pdf.RoundedRect(leftX-2, startY+40, 172, 47, 3, "1234", "F")
 
-	// Payment Info
+	// Details
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.SetTextColor(235, 235, 235)
+	pdf.SetXY(leftX+5, startY+46)
+	pdf.Cell(60, 8, "Booking ID")
+	pdf.Cell(0, 8, fmt.Sprintf(": %s", bk.BookingID))
+	pdf.Ln(7)
+
+	pdf.SetX(leftX + 5)
+	pdf.Cell(60, 8, "Email")
+	pdf.Cell(0, 8, fmt.Sprintf(": %s", bk.BookingEmail))
+	pdf.Ln(7)
+
+	pdf.SetX(leftX + 5)
+	pdf.Cell(60, 8, "Seat Type")
+	pdf.Cell(0, 8, fmt.Sprintf(": %s", bk.SeatType))
+	pdf.Ln(7)
+
+	pdf.SetX(leftX + 5)
+	pdf.Cell(60, 8, "Quantity")
+	pdf.Cell(0, 8, fmt.Sprintf(": %d", bk.SeatQuantity))
+	pdf.Ln(7)
+
+	pdf.SetX(leftX + 5)
+	pdf.Cell(60, 8, "Total Paid")
+	pdf.Cell(0, 8, fmt.Sprintf(": ₹%.2f", bk.TotalAmount))
+
+	// --- Logo beside Booking Details ---
+	if _, err := os.Stat(logoPath); err == nil {
+		SafeAddImage(pdf, logoPath, 160, startY+54, 35, false)
+	}
+
+	// --- Payment Info ---
+	pdf.Ln(18)
 	pdf.SetX(leftX)
 	pdf.SetFont("Helvetica", "B", 14)
 	pdf.SetTextColor(216, 27, 96)
 	pdf.Cell(0, 8, "PAYMENT INFORMATION")
 
-	pdf.Ln(10)
+	pdf.Ln(9)
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.SetTextColor(230, 230, 230)
 	if pay.Type != "" {
-		pdf.SetX(leftX)
+		pdf.SetX(leftX + 5)
 		pdf.Cell(0, 8, fmt.Sprintf("Method: %s", pay.Type))
 		pdf.Ln(7)
 	}
 	if pay.Details != "" {
-		pdf.SetX(leftX)
+		pdf.SetX(leftX + 5)
 		pdf.MultiCell(0, 8, fmt.Sprintf("Details: %s", pay.Details), "", "", false)
-		pdf.Ln(3)
 	}
 
-	// --- Right Column: QR Code ---
-	qrURL := fmt.Sprintf("https://bkentertainments.vercel.app/api/v1/participants-details/%s", bk.BookingID)
-	qrBytes, _ := qrcode.Encode(qrURL, qrcode.Medium, 256)
-	pdf.RegisterImageOptionsReader("qr", gofpdf.ImageOptions{ImageType: "png"}, bytes.NewReader(qrBytes))
-	qrX, qrY, qrSize := 135.0, startY+45, 55.0
+	// --- Participant Details ---
+	pdf.Ln(10)
+	pdf.SetX(leftX)
+	pdf.SetFont("Helvetica", "B", 14)
+	pdf.SetTextColor(216, 27, 96)
+	pdf.Cell(0, 8, "PARTICIPANT DETAILS")
 
-	// QR box with glow border
-	pdf.SetDrawColor(216, 27, 96)
-	pdf.SetLineWidth(0.6)
-	pdf.Rect(qrX-2, qrY-2, qrSize+4, qrSize+4, "")
-	pdf.ImageOptions("qr", qrX, qrY, qrSize, 0, false, gofpdf.ImageOptions{ImageType: "png"}, 0, "")
+	pdf.Ln(10)
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.SetTextColor(230, 230, 230)
 
-	pdf.SetY(qrY + qrSize + 6)
-	pdf.SetX(qrX)
-	pdf.SetFont("Helvetica", "I", 10)
-	pdf.SetTextColor(200, 200, 200)
-	pdf.Cell(0, 6, "Scan QR for Verification")
+	if len(participants) == 0 {
+		pdf.SetX(leftX + 5)
+		pdf.Cell(0, 8, "No participants found.")
+	} else {
+		// Divide participants into two columns (left/right)
+		half := (len(participants) + 1) / 2
+		leftCol := participants[:half]
+		rightCol := participants
+		if len(participants) > 5 {
+			rightCol = participants[half:]
+		}
+
+		boxTop := pdf.GetY() - 2
+		pdf.SetDrawColor(60, 60, 60)
+		pdf.RoundedRect(leftX-2, boxTop, 172, 90, 2, "1234", "D")
+
+		colWidth := 85.0
+		lineHeight := 5.0
+		rowSpacing := 1.5
+
+		for i := 0; i < len(leftCol) || i < len(rightCol); i++ {
+			y := boxTop + 6 + float64(i)*(lineHeight*3+rowSpacing)
+			if i < len(leftCol) {
+				p := leftCol[i]
+				pdf.SetXY(leftX+5, y)
+				pdf.Cell(0, 5, fmt.Sprintf("%d. %s", i+1, p.Name))
+				pdf.SetXY(leftX+10, y+lineHeight)
+				pdf.Cell(0, 5, fmt.Sprintf("WA: %s", p.WaNum))
+				if p.Email != "" {
+					pdf.SetXY(leftX+10, y+lineHeight*2)
+					pdf.Cell(0, 5, fmt.Sprintf("Email: %s", p.Email))
+				}
+			}
+
+			if i < len(rightCol) {
+				p := rightCol[i]
+				pdf.SetXY(leftX+colWidth, y)
+				pdf.Cell(0, 5, fmt.Sprintf("%d. %s", i+half+1, p.Name))
+				pdf.SetXY(leftX+colWidth+5, y+lineHeight)
+				pdf.Cell(0, 5, fmt.Sprintf("WA: %s", p.WaNum))
+				if p.Email != "" {
+					pdf.SetXY(leftX+colWidth+5, y+lineHeight*2)
+					pdf.Cell(0, 5, fmt.Sprintf("Email: %s", p.Email))
+				}
+			}
+		}
+	}
 
 	// --- Footer ---
 	pdf.SetFillColor(216, 27, 96)
@@ -152,5 +246,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	if err := pdf.Output(&buf); err != nil {
 		return nil, nil, err
 	}
+
+	logger.Log.Info(fmt.Sprintf("[generate-ticket-uc] ✅ PDF generated successfully for bookingID: %s", bk.BookingID))
 	return bk, buf.Bytes(), nil
 }
