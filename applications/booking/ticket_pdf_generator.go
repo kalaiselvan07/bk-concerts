@@ -199,39 +199,55 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 		// Divide participants into two columns (left/right)
 		half := (len(participants) + 1) / 2
 		leftCol := participants[:half]
-		rightCol := participants
-		if len(participants) > 5 {
+		var rightCol []*participant.Participant
+		if len(participants) > half {
 			rightCol = participants[half:]
 		}
 
+		// Dynamic box sizing
 		boxTop := pdf.GetY() - 2
-		pdf.SetDrawColor(60, 60, 60)
-		pdf.RoundedRect(leftX-2, boxTop, 172, 90, 2, "1234", "D")
-
-		colWidth := 85.0
 		lineHeight := 5.0
 		rowSpacing := 1.5
+		colWidth := 85.0
 
-		for i := 0; i < len(leftCol) || i < len(rightCol); i++ {
+		// Calculate box height dynamically based on row count
+		rowCount := len(leftCol)
+		if len(rightCol) > rowCount {
+			rowCount = len(rightCol)
+		}
+		boxHeight := float64(rowCount)*(lineHeight*3+rowSpacing) + 8
+
+		pdf.SetDrawColor(60, 60, 60)
+		pdf.RoundedRect(leftX-2, boxTop, 172, boxHeight, 2, "1234", "D")
+
+		// Render participants in two columns
+		for i := 0; i < rowCount; i++ {
 			y := boxTop + 6 + float64(i)*(lineHeight*3+rowSpacing)
+
+			// Left column
 			if i < len(leftCol) {
 				p := leftCol[i]
 				pdf.SetXY(leftX+5, y)
 				pdf.Cell(0, 5, fmt.Sprintf("%d. %s", i+1, p.Name))
+
 				pdf.SetXY(leftX+10, y+lineHeight)
 				pdf.Cell(0, 5, fmt.Sprintf("WA: %s", p.WaNum))
+
 				if p.Email != "" {
 					pdf.SetXY(leftX+10, y+lineHeight*2)
 					pdf.Cell(0, 5, fmt.Sprintf("Email: %s", p.Email))
 				}
 			}
 
+			// Right column
 			if i < len(rightCol) {
 				p := rightCol[i]
 				pdf.SetXY(leftX+colWidth, y)
 				pdf.Cell(0, 5, fmt.Sprintf("%d. %s", i+half+1, p.Name))
+
 				pdf.SetXY(leftX+colWidth+5, y+lineHeight)
 				pdf.Cell(0, 5, fmt.Sprintf("WA: %s", p.WaNum))
+
 				if p.Email != "" {
 					pdf.SetXY(leftX+colWidth+5, y+lineHeight*2)
 					pdf.Cell(0, 5, fmt.Sprintf("Email: %s", p.Email))
