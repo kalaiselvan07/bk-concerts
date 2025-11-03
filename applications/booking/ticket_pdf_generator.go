@@ -111,7 +111,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.SetTextColor(255, 255, 255)
 	pdf.SetFont("Helvetica", "B", 20)
 	pdf.SetXY(20, startY+8)
-	pdf.Cell(0, 10, "BLACKTICKETS OFFICIAL e-TICKET")
+	pdf.Cell(0, 10, "BLACKTICKET OFFICIAL e-TICKET")
 
 	// Accent line
 	pdf.SetDrawColor(216, 27, 96)
@@ -262,7 +262,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.SetTextColor(255, 255, 255)
 	pdf.SetY(284)
 	pdf.SetFont("Helvetica", "", 10)
-	pdf.CellFormat(0, 6, "© 2025 BlackTickets Entertainment", "", 0, "C", false, 0, "")
+	pdf.CellFormat(0, 6, "© 2025 BlackTicket Entertainments", "", 0, "C", false, 0, "")
 
 	// --- Output ---
 	var buf bytes.Buffer
