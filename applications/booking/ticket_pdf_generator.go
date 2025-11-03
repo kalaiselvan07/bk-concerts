@@ -189,14 +189,13 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.Cell(0, 8, "PARTICIPANT DETAILS")
 
 	pdf.Ln(10)
-	pdf.SetFont("Helvetica", "", 12)
+	pdf.SetFont("Helvetica", "", 11) // slightly smaller font
 	pdf.SetTextColor(230, 230, 230)
 
 	if len(participants) == 0 {
 		pdf.SetX(leftX + 5)
 		pdf.Cell(0, 8, "No participants found.")
 	} else {
-		// Divide participants into two columns (left/right)
 		half := (len(participants) + 1) / 2
 		leftCol := participants[:half]
 		var rightCol []*participant.Participant
@@ -204,13 +203,11 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 			rightCol = participants[half:]
 		}
 
-		// Dynamic box sizing
 		boxTop := pdf.GetY() - 2
-		lineHeight := 5.0
-		rowSpacing := 1.5
+		lineHeight := 4.2
+		rowSpacing := 0.8
 		colWidth := 85.0
 
-		// Calculate box height dynamically based on row count
 		rowCount := len(leftCol)
 		if len(rightCol) > rowCount {
 			rowCount = len(rightCol)
@@ -220,41 +217,46 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 		pdf.SetDrawColor(60, 60, 60)
 		pdf.RoundedRect(leftX-2, boxTop, 172, boxHeight, 2, "1234", "D")
 
-		// Render participants in two columns
 		for i := 0; i < rowCount; i++ {
 			y := boxTop + 6 + float64(i)*(lineHeight*3+rowSpacing)
 
-			// Left column
 			if i < len(leftCol) {
 				p := leftCol[i]
 				pdf.SetXY(leftX+5, y)
-				pdf.Cell(0, 5, fmt.Sprintf("%d. %s", i+1, p.Name))
+				pdf.Cell(0, 4.5, fmt.Sprintf("%d. %s", i+1, p.Name))
 
 				pdf.SetXY(leftX+10, y+lineHeight)
-				pdf.Cell(0, 5, fmt.Sprintf("WA: %s", p.WaNum))
+				pdf.Cell(0, 4.5, fmt.Sprintf("WA: %s", p.WaNum))
 
 				if p.Email != "" {
 					pdf.SetXY(leftX+10, y+lineHeight*2)
-					pdf.Cell(0, 5, fmt.Sprintf("Email: %s", p.Email))
+					pdf.Cell(0, 4.5, fmt.Sprintf("Email: %s", p.Email))
 				}
 			}
 
-			// Right column
 			if i < len(rightCol) {
 				p := rightCol[i]
 				pdf.SetXY(leftX+colWidth, y)
-				pdf.Cell(0, 5, fmt.Sprintf("%d. %s", i+half+1, p.Name))
+				pdf.Cell(0, 4.5, fmt.Sprintf("%d. %s", i+half+1, p.Name))
 
 				pdf.SetXY(leftX+colWidth+5, y+lineHeight)
-				pdf.Cell(0, 5, fmt.Sprintf("WA: %s", p.WaNum))
+				pdf.Cell(0, 4.5, fmt.Sprintf("WA: %s", p.WaNum))
 
 				if p.Email != "" {
 					pdf.SetXY(leftX+colWidth+5, y+lineHeight*2)
-					pdf.Cell(0, 5, fmt.Sprintf("Email: %s", p.Email))
+					pdf.Cell(0, 4.5, fmt.Sprintf("Email: %s", p.Email))
 				}
 			}
 		}
 	}
+
+	// --- Footer (Reduced height, slightly lower) ---
+	pdf.SetFillColor(216, 27, 96)
+	pdf.Rect(0, 287, 210, 10, "F")
+	pdf.SetTextColor(255, 255, 255)
+	pdf.SetY(290)
+	pdf.SetFont("Helvetica", "", 9)
+	pdf.CellFormat(0, 5, "© 2025 BlackTicket Entertainments", "", 0, "C", false, 0, "")
 
 	// --- Footer ---
 	pdf.SetFillColor(216, 27, 96)
