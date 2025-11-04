@@ -54,17 +54,22 @@ func BookNow(payload []byte) (*Booking, error) {
 	}
 	defer tx.Rollback()
 
-	updatedSeat, err := validateAndUpdateSeatTx(tx, p.SeatID, p.SeatQuantity)
+	currentSeat, err := seat.GetSeatForUpdateTx(tx, p.SeatID)
 	if err != nil {
-		return nil, fmt.Errorf("%s: seat update failed: %w", CANCELLED, err)
+		return nil, err
 	}
+
+	// updatedSeat, err := validateAndUpdateSeatTx(tx, p.SeatID, p.SeatQuantity)
+	// if err != nil {
+	// 	return nil, fmt.Errorf("%s: seat update failed: %w", CANCELLED, err)
+	// }
 
 	participantIDs, err := addParticipantsTx(tx, p.Participants)
 	if err != nil {
 		return nil, fmt.Errorf("%s: adding participants failed: %w", CANCELLED, err)
 	}
 
-	bk, err := newBookingTx(tx, &p, updatedSeat.SeatType, participantIDs)
+	bk, err := newBookingTx(tx, &p, currentSeat.SeatType, participantIDs)
 	if err != nil {
 		return nil, fmt.Errorf("%s: booking insertion failed: %w", CANCELLED, err)
 	}

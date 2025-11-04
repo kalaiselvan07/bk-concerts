@@ -43,7 +43,7 @@ func SafeAddImage(pdf *gofpdf.Fpdf, path string, x, y, width float64, readDpi bo
 		gofpdf.ImageOptions{ImageType: imgType, ReadDpi: readDpi}, 0, "")
 }
 
-// GenerateTicketPDF creates an elite e-ticket design with structured layout.
+// GenerateTicketPDF creates a clean eTicket with multi-page layout.
 func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	logger.Log.Info(fmt.Sprintf("[generate-ticket-uc] Generating ticket for bookingID: %s", bookingID))
 
@@ -79,9 +79,9 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	logoPath := "resources/whitelogo.png"
 
 	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.AddPage()
 	pdf.SetAutoPageBreak(false, 0)
 	pdf.SetMargins(0, 0, 0)
+	pdf.AddPage()
 
 	// --- Poster Banner ---
 	SafeAddImage(pdf, posterPath, 0, 0, 210, true)
@@ -102,7 +102,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.SetTextColor(210, 210, 210)
 	pdf.CellFormat(45, 5, "Scan QR for Participant Details", "", 0, "C", false, 0, "")
 
-	// --- Black Ticket Section ---
+	// --- Black Background ---
 	startY := 68.0
 	pdf.SetFillColor(0, 0, 0)
 	pdf.Rect(0, startY, 210, 212, "F")
@@ -113,23 +113,20 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.SetXY(20, startY+8)
 	pdf.Cell(0, 10, "BLACKTICKET OFFICIAL e-TICKET")
 
-	// Accent line
 	pdf.SetDrawColor(216, 27, 96)
 	pdf.SetLineWidth(0.8)
 	pdf.Line(20, startY+20, 190, startY+20)
 
-	// --- Booking Details (Enhanced Card Layout) ---
+	// --- Booking Details ---
 	leftX := 20.0
 	pdf.SetFont("Helvetica", "B", 15)
 	pdf.SetTextColor(216, 27, 96)
 	pdf.SetXY(leftX, startY+30)
 	pdf.Cell(0, 8, "BOOKING DETAILS")
 
-	// Card Background
 	pdf.SetFillColor(15, 15, 15)
 	pdf.RoundedRect(leftX-2, startY+40, 172, 47, 3, "1234", "F")
 
-	// Details
 	pdf.SetFont("Helvetica", "", 12)
 	pdf.SetTextColor(235, 235, 235)
 	pdf.SetXY(leftX+5, startY+46)
@@ -156,7 +153,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.Cell(60, 8, "Total Paid")
 	pdf.Cell(0, 8, fmt.Sprintf(": %.2f INR / %.2f GEL", bk.TotalAmount, gelAmount))
 
-	// --- Logo beside Booking Details ---
+	// --- Logo ---
 	if _, err := os.Stat(logoPath); err == nil {
 		SafeAddImage(pdf, logoPath, 160, startY+54, 35, false)
 	}
@@ -189,7 +186,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.Cell(0, 8, "PARTICIPANT DETAILS")
 
 	pdf.Ln(10)
-	pdf.SetFont("Helvetica", "", 11) // slightly smaller font
+	pdf.SetFont("Helvetica", "", 11)
 	pdf.SetTextColor(230, 230, 230)
 
 	if len(participants) == 0 {
@@ -207,12 +204,13 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 		lineHeight := 4.2
 		rowSpacing := 0.8
 		colWidth := 85.0
-
 		rowCount := len(leftCol)
 		if len(rightCol) > rowCount {
 			rowCount = len(rightCol)
 		}
-		boxHeight := float64(rowCount)*(lineHeight*3+rowSpacing) + 8
+
+		// Slightly increased height to avoid cutoff
+		boxHeight := float64(rowCount)*(lineHeight*3+rowSpacing) + 10
 
 		pdf.SetDrawColor(60, 60, 60)
 		pdf.RoundedRect(leftX-2, boxTop, 172, boxHeight, 2, "1234", "D")
@@ -224,10 +222,8 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 				p := leftCol[i]
 				pdf.SetXY(leftX+5, y)
 				pdf.Cell(0, 4.5, fmt.Sprintf("%d. %s", i+1, p.Name))
-
 				pdf.SetXY(leftX+10, y+lineHeight)
 				pdf.Cell(0, 4.5, fmt.Sprintf("WA: %s", p.WaNum))
-
 				if p.Email != "" {
 					pdf.SetXY(leftX+10, y+lineHeight*2)
 					pdf.Cell(0, 4.5, fmt.Sprintf("Email: %s", p.Email))
@@ -238,10 +234,8 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 				p := rightCol[i]
 				pdf.SetXY(leftX+colWidth, y)
 				pdf.Cell(0, 4.5, fmt.Sprintf("%d. %s", i+half+1, p.Name))
-
 				pdf.SetXY(leftX+colWidth+5, y+lineHeight)
 				pdf.Cell(0, 4.5, fmt.Sprintf("WA: %s", p.WaNum))
-
 				if p.Email != "" {
 					pdf.SetXY(leftX+colWidth+5, y+lineHeight*2)
 					pdf.Cell(0, 4.5, fmt.Sprintf("Email: %s", p.Email))
@@ -250,15 +244,82 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 		}
 	}
 
-	// --- Footer (Reduced height, slightly lower) ---
+	// --- Footer Page 1 ---
 	pdf.SetFillColor(216, 27, 96)
-	pdf.Rect(0, 287, 210, 10, "F")
+	pdf.Rect(0, 280, 210, 17, "F")
 	pdf.SetTextColor(255, 255, 255)
-	pdf.SetY(290)
-	pdf.SetFont("Helvetica", "", 9)
-	pdf.CellFormat(0, 5, "© 2025 BlackTicket Entertainments", "", 0, "C", false, 0, "")
+	pdf.SetY(284)
+	pdf.SetFont("Helvetica", "", 10)
+	pdf.CellFormat(0, 6, "© 2025 BlackTicket Entertainments", "", 0, "C", false, 0, "")
 
-	// --- Footer ---
+	// --- PAGE 2: General Rules ---
+	pdf.AddPage()
+	pdf.SetFillColor(0, 0, 0)
+	pdf.Rect(0, 0, 210, 297, "F")
+
+	// --- Logo (center top) ---
+	logoPath = "resources/whitelogo.png"
+	if _, err := os.Stat(logoPath); err == nil {
+		logoW := 40.0
+		logoX := (210 - logoW) / 2 // center align
+		logoY := 14.0
+		SafeAddImage(pdf, logoPath, logoX, logoY, logoW, false)
+	}
+
+	// --- Title Section ---
+	pdf.SetTextColor(255, 255, 255)
+	pdf.SetFont("Helvetica", "B", 20)
+	pdf.SetXY(0, 47)
+	pdf.CellFormat(210, 10, "General Rules & Guidelines", "", 1, "C", false, 0, "")
+
+	// Accent line below title
+	pdf.SetDrawColor(216, 27, 96)
+	pdf.SetLineWidth(0.7)
+	pdf.Line(50, 57, 160, 57)
+
+	// --- Rules Card Container ---
+	cardX, cardY, cardW, cardH := 20.0, 65.0, 170.0, 200.0
+	pdf.SetFillColor(18, 18, 18)
+	pdf.RoundedRect(cardX, cardY, cardW, cardH, 3, "1234", "F")
+
+	pdf.SetFont("Helvetica", "", 12)
+	pdf.SetTextColor(235, 235, 235)
+
+	rules := []string{
+		"1. Entry only with valid ticket or pass.",
+		"2. ID check may be required for verification.",
+		"3. Outside food, drinks, or alcohol are strictly prohibited.",
+		"4. Weapons, drugs, or illegal substances are not allowed.",
+		"5. Please be respectful to staff and fellow guests.",
+		"6. Fights, harassment, or loud arguments will lead to removal.",
+		"7. Smoking is permitted only in designated areas.",
+		"8. Always follow instructions from security or event organizers.",
+		"9. Keep emergency exits clear and accessible at all times.",
+		"10. The venue is not responsible for any lost or stolen items.",
+		"11. Intoxicated or misbehaving guests may be denied entry.",
+		"12. Tickets are non-refundable unless the event is officially canceled.",
+		"13. Help us keep the venue clean and free of damage.",
+	}
+
+	// --- Rules List with Proper Indentation ---
+	lineSpacing := 8.0
+	textStartX := cardX + 10
+	textWidth := cardW - 20
+	y := cardY + 15
+
+	for _, rule := range rules {
+		pdf.SetXY(textStartX, y)
+		pdf.MultiCell(textWidth, lineSpacing, rule, "", "", false)
+		y = pdf.GetY()
+	}
+
+	// --- Sub-footer note ---
+	pdf.Ln(6)
+	pdf.SetTextColor(200, 200, 200)
+	pdf.SetFont("Helvetica", "I", 11)
+	pdf.CellFormat(0, 10, "Your cooperation ensures a safe and enjoyable experience for everyone.", "", 0, "C", false, 0, "")
+
+	// --- Footer Page 2 ---
 	pdf.SetFillColor(216, 27, 96)
 	pdf.Rect(0, 280, 210, 17, "F")
 	pdf.SetTextColor(255, 255, 255)
