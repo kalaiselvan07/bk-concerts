@@ -77,6 +77,8 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 
 	posterPath := "resources/asal.jpg"
 	logoPath := "resources/whitelogo.png"
+	cskovereas := "resources/cskovereas.jpg"
+	flythrough := "resources/flythrough.jpg"
 
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.SetAutoPageBreak(false, 0)
@@ -154,9 +156,9 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.Cell(0, 8, fmt.Sprintf(": %.2f INR / %.2f GEL", bk.TotalAmount, gelAmount))
 
 	// --- Logo ---
-	if _, err := os.Stat(logoPath); err == nil {
-		SafeAddImage(pdf, logoPath, 160, startY+54, 35, false)
-	}
+	// if _, err := os.Stat(logoPath); err == nil {
+	// 	SafeAddImage(pdf, logoPath, 160, startY+54, 35, false)
+	// }
 
 	// --- Payment Info ---
 	pdf.Ln(18)
@@ -209,7 +211,6 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 			rowCount = len(rightCol)
 		}
 
-		// Slightly increased height to avoid cutoff
 		boxHeight := float64(rowCount)*(lineHeight*3+rowSpacing) + 10
 
 		pdf.SetDrawColor(60, 60, 60)
@@ -261,7 +262,7 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	logoPath = "resources/whitelogo.png"
 	if _, err := os.Stat(logoPath); err == nil {
 		logoW := 40.0
-		logoX := (210 - logoW) / 2 // center align
+		logoX := (210 - logoW) / 2
 		logoY := 14.0
 		SafeAddImage(pdf, logoPath, logoX, logoY, logoW, false)
 	}
@@ -272,7 +273,6 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.SetXY(0, 47)
 	pdf.CellFormat(210, 10, "General Rules & Guidelines", "", 1, "C", false, 0, "")
 
-	// Accent line below title
 	pdf.SetDrawColor(216, 27, 96)
 	pdf.SetLineWidth(0.7)
 	pdf.Line(50, 57, 160, 57)
@@ -301,7 +301,6 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 		"13. Help us keep the venue clean and free of damage.",
 	}
 
-	// --- Rules List with Proper Indentation ---
 	lineSpacing := 8.0
 	textStartX := cardX + 10
 	textWidth := cardW - 20
@@ -318,6 +317,18 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 	pdf.SetTextColor(200, 200, 200)
 	pdf.SetFont("Helvetica", "I", 11)
 	pdf.CellFormat(0, 10, "Your cooperation ensures a safe and enjoyable experience for everyone.", "", 0, "C", false, 0, "")
+
+	// --- Sponsor Logos (Dynamic Placement Above Footer) ---
+	yPos := pdf.GetY() + 20
+	if yPos > 260 {
+		yPos = 260 // ensure stays above footer always
+	}
+	if _, err := os.Stat(cskovereas); err == nil {
+		SafeAddImage(pdf, cskovereas, 40, yPos, 45, false)
+	}
+	if _, err := os.Stat(flythrough); err == nil {
+		SafeAddImage(pdf, flythrough, 125, yPos, 45, false)
+	}
 
 	// --- Footer Page 2 ---
 	pdf.SetFillColor(216, 27, 96)
