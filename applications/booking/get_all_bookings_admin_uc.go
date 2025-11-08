@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bk-concerts/db"
-	"bk-concerts/logger"
+	"supra/db"
+	"supra/logger"
 )
 
 // GetAllBookingsAdminUC retrieves all bookings (regardless of status) for admin dashboard.

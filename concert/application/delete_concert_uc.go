@@ -1,17 +1,28 @@
-package concert
+package application
 
 import (
 	"fmt"
+	"log/slog"
 
-	"bk-concerts/db"     // Using the correct module path
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"     // Using the correct module path
+	"supra/logger" // ⬅️ Assuming this import path
 
 	"github.com/google/uuid"
 )
 
+type DeleteConcertUC struct {
+	log *slog.Logger
+}
+
+func NewDeleteConcertUC(log *slog.Logger) *DeleteConcertUC {
+	return &DeleteConcertUC{
+		log: log,
+	}
+}
+
 // DeleteConcert removes a concert record from the database by its ID.
 // It returns the number of rows affected or an error.
-func DeleteConcert(concertID string) (int64, error) {
+func (uc *DeleteConcertUC) Invoke(concertID string) (int64, error) {
 	logger.Log.Info(fmt.Sprintf("[delete-concert-uc] Deletion initiated for concertID: %s", concertID))
 
 	// 1. Validate and convert the ID string to uuid.UUID

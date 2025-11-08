@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"bk-concerts/db"     // Using the correct module path
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"     // Using the correct module path
+	"supra/logger" // ⬅️ Assuming this import path
 
 	"github.com/google/uuid"
 )

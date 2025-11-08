@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bk-concerts/db"     // Assuming this exposes a global *sql.DB
-	"bk-concerts/logger" // Your structured logger
+	"supra/db"     // Assuming this exposes a global *sql.DB
+	"supra/logger" // Your structured logger
 
 	"github.com/google/uuid"
 )

@@ -1,17 +1,29 @@
-package concert
+package application
 
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	// Added for rows.Err()
-	"bk-concerts/db"     // Using the correct module path
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/concert/domain"
+	"supra/db"     // Using the correct module path
+	"supra/logger" // ⬅️ Assuming this import path
 	// NOTE: Concert struct definition (including PaymentIDs) is assumed here
 )
 
+type GetAllConcertsUC struct {
+	log *slog.Logger
+}
+
+func NewGetAllConcertsUC(log *slog.Logger) *GetAllConcertsUC {
+	return &GetAllConcertsUC{
+		log: log,
+	}
+}
+
 // GetAllConcerts retrieves a slice of all concert records from the database.
-func GetAllConcerts() ([]*Concert, error) {
+func (uc *GetAllConcertsUC) Invoke() ([]*domain.Concert, error) {
 	logger.Log.Info("[get-all-concert-uc] Starting retrieval of all concerts.")
 
 	// ✨ 1. Update SELECT query to include payment_ids ✨
@@ -28,12 +40,12 @@ func GetAllConcerts() ([]*Concert, error) {
 	}
 	defer rows.Close() // Ensure the result set is closed
 
-	concerts := make([]*Concert, 0)
+	concerts := make([]*domain.Concert, 0)
 	recordCount := 0
 
 	// 4. Iterate through the results
 	for rows.Next() {
-		c := &Concert{}
+		c := &domain.Concert{}
 		var seatIDsJSON []byte
 		var paymentIDsJSON []byte // ✨ Variable for payment IDs JSONB ✨
 		var concertIDStr string   // Helper if ConcertID is string in struct

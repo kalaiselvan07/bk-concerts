@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bk-concerts/db"
-	"bk-concerts/logger"
+	"supra/db"
+	"supra/logger"
 )
 
 // GetPendingBookingsUC retrieves all bookings awaiting verification by admin.

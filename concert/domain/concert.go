@@ -1,4 +1,4 @@
-package concert
+package domain
 
 type Concert struct {
 	ConcertID   string   `json:"concertID" validate:"required"`

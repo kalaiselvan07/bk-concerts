@@ -3,7 +3,7 @@ package db
 import (
 	"fmt"
 
-	"bk-concerts/logger"
+	"supra/logger"
 )
 
 const createSeatTableSQL = `
@@ -50,7 +50,6 @@ CREATE TABLE IF NOT EXISTS booking (
     booking_id UUID PRIMARY KEY,
     booking_email TEXT NOT NULL,
     booking_status TEXT NOT NULL,
-    payment_details_id TEXT NOT NULL,
     receipt_image BYTEA,
     seat_quantity INTEGER NOT NULL,
     seat_id TEXT NOT NULL,

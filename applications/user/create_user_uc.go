@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"time"
 
-	"bk-concerts/db"
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"
+	"supra/logger" // ⬅️ Assuming this import path
 
 	"github.com/google/uuid"
 )

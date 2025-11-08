@@ -1,16 +1,26 @@
-package concert
+package application
 
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
-	"bk-concerts/db"     // Using the correct module path
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/concert/domain"
+	"supra/db"
+	"supra/logger"
 
 	"github.com/google/uuid"
 )
 
-// NOTE: The Concert struct (with PaymentIDs) is assumed to be defined elsewhere in this package.
+type CreateConcertUC struct {
+	log *slog.Logger
+}
+
+func NewCreateConcertUC(log *slog.Logger) *CreateConcertUC {
+	return &CreateConcertUC{
+		log: log,
+	}
+}
 
 type CreateConcertParams struct {
 	Title             string   `json:"title" validate:"required"`
@@ -22,8 +32,7 @@ type CreateConcertParams struct {
 }
 
 // CreateConcert handles the creation of a new concert record in the database.
-// It accepts a raw JSON payload and returns the created Concert object.
-func CreateConcert(payload []byte) (*Concert, error) {
+func (uc *CreateConcertUC) Invoke(payload []byte) (*domain.Concert, error) {
 	var p CreateConcertParams
 
 	logger.Log.Info("[create-concert-uc] Starting concert creation process.")
@@ -52,7 +61,7 @@ func CreateConcert(payload []byte) (*Concert, error) {
 		return nil, fmt.Errorf("failed to marshal PaymentIDs to JSON: %w", err)
 	}
 
-	concert := &Concert{
+	concert := &domain.Concert{
 		ConcertID:   newID,
 		Title:       p.Title,
 		Venue:       p.Venue,

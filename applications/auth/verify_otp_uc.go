@@ -7,9 +7,9 @@ import (
 	"fmt"
 	"time"
 
-	"bk-concerts/applications/user"
-	"bk-concerts/db"
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/applications/user"
+	"supra/db"
+	"supra/logger" // ⬅️ Assuming this import path
 )
 
 // VerifyOTP checks the submitted code, logs the user in, and deletes the code.

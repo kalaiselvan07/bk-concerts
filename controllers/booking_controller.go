@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strings"
 
-	"bk-concerts/applications/booking"
-	"bk-concerts/logger"
+	"supra/applications/booking"
+	"supra/logger"
 
 	"github.com/labstack/echo/v4"
 )

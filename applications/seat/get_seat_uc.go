@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"bk-concerts/db"     // ⬅️ Import your database package
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"     // ⬅️ Import your database package
+	"supra/logger" // ⬅️ Assuming this import path
 
 	"github.com/google/uuid"
 )

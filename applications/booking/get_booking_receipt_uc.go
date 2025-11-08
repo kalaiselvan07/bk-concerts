@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bk-concerts/db"
-	"bk-concerts/logger"
+	"supra/db"
+	"supra/logger"
 
 	"github.com/google/uuid"
 )

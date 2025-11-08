@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 
-	"bk-concerts/applications/user" // Import user use cases
-	"bk-concerts/logger"            // ⬅️ Assuming this import path
+	"supra/applications/user" // Import user use cases
+	"supra/logger"            // ⬅️ Assuming this import path
 )
 
 // LoginAdmin handles the secure login flow for the Administrator.

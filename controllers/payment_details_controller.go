@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"bk-concerts/applications/paymentdetails" // Using the correct module path
+	"supra/applications/paymentdetails" // Using the correct module path
 
 	"github.com/labstack/echo/v4"
 )

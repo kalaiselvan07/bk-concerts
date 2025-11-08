@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"bk-concerts/db" // Assumes db is in bk-concerts/db
-	"bk-concerts/logger"
+	"supra/db" // Assumes db is in supra/db
+	"supra/logger"
 )
 
 // GetUserRoleByEmail returns the user's role if they exist, or an error.

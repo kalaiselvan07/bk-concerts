@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/logger" // ⬅️ Assuming this import path
 
 	_ "github.com/lib/pq" // PostgreSQL driver
 )

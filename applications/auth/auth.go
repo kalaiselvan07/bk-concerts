@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"bk-concerts/logger"
+	"supra/logger"
 
 	"github.com/golang-jwt/jwt/v5"
 )
