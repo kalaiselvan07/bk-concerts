@@ -10,11 +10,11 @@ import (
 	"os"
 	"time"
 
-	"bk-concerts/applications/auth"
-	"bk-concerts/applications/participant"
-	"bk-concerts/applications/seat"
-	"bk-concerts/db"
-	"bk-concerts/logger"
+	"supra/applications/auth"
+	"supra/applications/participant"
+	"supra/applications/seat"
+	"supra/db"
+	"supra/logger"
 
 	"github.com/google/uuid"
 )

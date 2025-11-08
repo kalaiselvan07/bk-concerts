@@ -4,8 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"bk-concerts/db"     // Assumes db is in bk-concerts/db
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"     // Assumes db is in supra/db
+	"supra/logger" // ⬅️ Assuming this import path
 )
 
 // NOTE: User struct fields (UserID, Email, Password, Role, CreatedAt) are assumed to be defined in this package.

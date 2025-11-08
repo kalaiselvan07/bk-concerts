@@ -5,9 +5,9 @@ import (
 	"net/http"
 	"strings"
 
-	"bk-concerts/applications/auth"
-	"bk-concerts/applications/user" // Assumes user use cases are available
-	"bk-concerts/logger"            // ⬅️ Assuming this import path
+	"supra/applications/auth"
+	"supra/applications/user" // Assumes user use cases are available
+	"supra/logger"            // ⬅️ Assuming this import path
 
 	"github.com/labstack/echo/v4"
 )

@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"bk-concerts/applications/seat"
+	"supra/applications/seat"
 
 	"github.com/labstack/echo/v4"
 )

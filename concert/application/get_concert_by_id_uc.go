@@ -1,20 +1,30 @@
-package concert
+package application
 
 import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
-	"bk-concerts/db"
-	"bk-concerts/logger"
+	"supra/concert/domain"
+	"supra/db"
+	"supra/logger"
 
 	"github.com/google/uuid"
 )
 
-// NOTE: Concert struct definition (including PaymentIDs) is assumed here
+type GetConcertByIDUC struct {
+	log *slog.Logger
+}
+
+func NewGetConcertByIDUC(log *slog.Logger) *GetConcertByIDUC {
+	return &GetConcertByIDUC{
+		log: log,
+	}
+}
 
 // GetConcert retrieves a single concert's details from the database by its ID.
-func GetConcert(concertID string) (*Concert, error) {
+func (uc *GetConcertByIDUC) Invoke(concertID string) (*domain.Concert, error) {
 	logger.Log.Info(fmt.Sprintf("[get-concert-uc] Starting retrieval for concert ID: %s", concertID))
 
 	id, err := uuid.Parse(concertID)
@@ -32,7 +42,7 @@ func GetConcert(concertID string) (*Concert, error) {
 	logger.Log.Info(fmt.Sprintf("[get-concert-uc] Executing SELECT query for ID: %s", concertID))
 	row := db.DB.QueryRow(selectSQL, id)
 
-	c := &Concert{}
+	c := &domain.Concert{}
 	var seatIDsJSON []byte
 	var paymentIDsJSON []byte   // Variable for payment IDs JSONB
 	var concertIDUUID uuid.UUID // Use UUID type for scanning

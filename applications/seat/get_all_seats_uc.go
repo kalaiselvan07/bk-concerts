@@ -3,8 +3,8 @@ package seat
 import (
 	"fmt"
 	// Required for rows.Err() and implicit type handling
-	"bk-concerts/db"     // ⬅️ Import your database package
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"     // ⬅️ Import your database package
+	"supra/logger" // ⬅️ Assuming this import path
 )
 
 // NOTE: The Seat struct is assumed to be defined elsewhere in this package.

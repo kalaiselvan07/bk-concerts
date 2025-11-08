@@ -3,8 +3,8 @@ package paymentdetails
 import (
 	"fmt"
 
-	"bk-concerts/db"     // Assumes this is the package path for your database connection
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"     // Assumes this is the package path for your database connection
+	"supra/logger" // ⬅️ Assuming this import path
 
 	"github.com/google/uuid"
 )

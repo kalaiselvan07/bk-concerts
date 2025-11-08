@@ -1,14 +1,15 @@
 package main
 
 import (
-	"bk-concerts/applications/auth"
-	"bk-concerts/controllers"
-	"bk-concerts/db"
-	"bk-concerts/logger" // Your logging package
 	"fmt"
 	"log"
 	"os"
 	"strings"
+	"supra/applications/auth"
+	"supra/concert/infrastructure"
+	"supra/controllers"
+	"supra/db"
+	"supra/logger" // Your logging package
 	"time"
 
 	"github.com/joho/godotenv"
@@ -115,11 +116,11 @@ func main() {
 	logger.Log.Info("[router] Admin: Seats CRUD configured.")
 
 	// Concerts
-	r.GET("/concerts", controllers.GetAllConcertsController) // NOTE: Corrected GetAllSeatsHandler to GetAllConcertsController
-	r.GET("/concerts/:concertID", controllers.GetConcertController)
-	admin.POST("/concerts", controllers.CreateConcertController)
-	admin.PUT("/concerts/:concertID", controllers.UpdateConcertController)
-	admin.DELETE("/concerts/:concertID", controllers.DeleteConcertController)
+	r.GET("/concerts", infrastructure.NewGetAllConcertsController(logger.Log).Invoke)
+	r.GET("/concerts/:concertID", infrastructure.NewGetConcertByIDController(logger.Log).Invoke)
+	admin.POST("/concerts", infrastructure.NewCreateConcertController(logger.Log).Invoke)
+	// admin.PUT("/concerts/:concertID", controllers.UpdateConcertController)
+	admin.DELETE("/concerts/:concertID", infrastructure.NewDeleteConcertController(logger.Log).Invoke)
 	logger.Log.Info("[router] Admin: Concerts CRUD configured.")
 
 	// Participants

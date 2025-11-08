@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"bk-concerts/logger"
+	"supra/logger"
 )
 
 const resendAPI = "https://api.resend.com/emails"

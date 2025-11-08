@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"bk-concerts/applications/participant"
-	"bk-concerts/applications/paymentdetails"
-	"bk-concerts/applications/seat"
-	"bk-concerts/logger"
+	"supra/applications/participant"
+	"supra/applications/paymentdetails"
+	"supra/applications/seat"
+	"supra/logger"
 
 	"github.com/jung-kurt/gofpdf"
 	qrcode "github.com/skip2/go-qrcode"

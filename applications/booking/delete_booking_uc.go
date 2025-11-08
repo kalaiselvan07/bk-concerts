@@ -6,9 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bk-concerts/applications/seat"
-	"bk-concerts/db"
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/applications/seat"
+	"supra/db"
+	"supra/logger" // ⬅️ Assuming this import path
 
 	"github.com/google/uuid"
 	// NOTE: Booking struct, constants, and GetBookingTx assumed here

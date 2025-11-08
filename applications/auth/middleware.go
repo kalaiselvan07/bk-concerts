@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/logger" // ⬅️ Assuming this import path
 
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/labstack/echo/v4"

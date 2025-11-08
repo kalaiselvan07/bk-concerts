@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"bk-concerts/db"     // Assumes global DB instance
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"     // Assumes global DB instance
+	"supra/logger" // ⬅️ Assuming this import path
 )
 
 // NOTE: Booking struct definition is assumed here

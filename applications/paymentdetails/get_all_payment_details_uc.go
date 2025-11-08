@@ -3,8 +3,8 @@ package paymentdetails
 import (
 	"fmt"
 	// Added for rows.Err()
-	"bk-concerts/db"     // Assumes this is the package path for your database connection
-	"bk-concerts/logger" // ⬅️ Assuming this import path
+	"supra/db"     // Assumes this is the package path for your database connection
+	"supra/logger" // ⬅️ Assuming this import path
 	// NOTE: PaymentDetails struct is assumed here
 )
 

@@ -3,8 +3,8 @@ package booking
 import (
 	"fmt"
 
-	"bk-concerts/applications/participant"
-	"bk-concerts/logger"
+	"supra/applications/participant"
+	"supra/logger"
 )
 
 // GetAllParticipantByBookingID retrieves all participants for a given booking ID.

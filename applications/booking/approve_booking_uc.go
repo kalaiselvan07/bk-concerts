@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"time"
 
-	"bk-concerts/applications/auth"
-	"bk-concerts/db"
-	"bk-concerts/logger"
+	"supra/applications/auth"
+	"supra/db"
+	"supra/logger"
 
 	"github.com/google/uuid"
 )
