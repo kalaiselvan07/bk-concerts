@@ -94,6 +94,7 @@ func main() {
 
 	r := e.Group("/api/v1")
 	r.Use(auth.JWTAuthMiddleware)
+	noAuth := e.Group("/api/v1")
 
 	// Booking Routes (Making a booking, viewing history)
 	r.POST("/bookings", controllers.BookNowController)
@@ -108,16 +109,16 @@ func main() {
 	// --- ADMIN CRUD ROUTES ---
 
 	// Seats
-	r.GET("/seats", controllers.GetAllSeatsHandler)
-	r.GET("/seats/:seatID", controllers.GetSeatHandler)
+	noAuth.GET("/seats", controllers.GetAllSeatsHandler)
+	noAuth.GET("/seats/:seatID", controllers.GetSeatHandler)
 	admin.POST("/seats", controllers.AddSeatHandler)
 	admin.PUT("/seats/:seatID", controllers.UpdateSeatController)
 	admin.DELETE("/seats/:seatID", controllers.DeleteSeatHandler)
 	logger.Log.Info("[router] Admin: Seats CRUD configured.")
 
 	// Concerts
-	r.GET("/concerts", infrastructure.NewGetAllConcertsController(logger.Log).Invoke)
-	r.GET("/concerts/:concertID", infrastructure.NewGetConcertByIDController(logger.Log).Invoke)
+	noAuth.GET("/concerts", infrastructure.NewGetAllConcertsController(logger.Log).Invoke)
+	noAuth.GET("/concerts/:concertID", infrastructure.NewGetConcertByIDController(logger.Log).Invoke)
 	admin.POST("/concerts", infrastructure.NewCreateConcertController(logger.Log).Invoke)
 	// admin.PUT("/concerts/:concertID", controllers.UpdateConcertController)
 	admin.DELETE("/concerts/:concertID", infrastructure.NewDeleteConcertController(logger.Log).Invoke)
@@ -132,8 +133,8 @@ func main() {
 	logger.Log.Info("[router] Admin: Participants CRUD configured.")
 
 	// Payments
-	r.GET("/payments", controllers.GetAllPaymentsController)
-	r.GET("/payments/:paymentID", controllers.GetPaymentController)
+	noAuth.GET("/payments", controllers.GetAllPaymentsController)
+	noAuth.GET("/payments/:paymentID", controllers.GetPaymentController)
 	admin.POST("/payments", controllers.AddPaymentController)
 	admin.PUT("/payments/:paymentID", controllers.UpdatePaymentController)
 	admin.DELETE("/payments/:paymentID", controllers.DeletePaymentController)
