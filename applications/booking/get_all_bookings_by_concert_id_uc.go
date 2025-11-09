@@ -1,21 +1,23 @@
 package booking
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
-	"supra/db"     // Assuming this exposes a global *sql.DB
-	"supra/logger" // Your structured logger
+	"supra/db"     // exposes global *sql.DB or pgxpool.Pool
+	"supra/logger" // structured logger
 
 	"github.com/google/uuid"
 )
 
 // GetAllBookingsByConcertID retrieves all bookings for a specific concert ID.
-// If status == "all", it fetches every booking; otherwise, it filters for verification-related statuses.
 func GetAllBookingsByConcertID(concertID, status string) ([]*Booking, error) {
 	logger.Log.Info(fmt.Sprintf("[get-all-booking-concertID-uc] Retrieving bookings for concert: %s", concertID))
 
-	// Define SQL query based on the filter condition
+	ctx := context.Background()
+
+	// ✅ Define SQL query based on filter condition
 	var selectAllSQL string
 	if status == "all" {
 		selectAllSQL = `
@@ -38,8 +40,8 @@ func GetAllBookingsByConcertID(concertID, status string) ([]*Booking, error) {
 
 	logger.Log.Info("[get-all-booking-concertID-uc] Executing SELECT all query (filtered).")
 
-	// Run the query
-	rows, err := db.DB.Query(selectAllSQL, concertID)
+	// ✅ Run query with context (avoids stale connection issues)
+	rows, err := db.DB.QueryContext(ctx, selectAllSQL, concertID)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("[get-all-booking-concertID-uc] Database query failed for %s: %v", concertID, err))
 		return nil, fmt.Errorf("database query error: %w", err)
@@ -68,7 +70,7 @@ func GetAllBookingsByConcertID(concertID, status string) ([]*Booking, error) {
 		bk.BookingID = bookingIDUUID
 		bk.ReceiptImage = receiptImage
 
-		// Unmarshal JSON array for participant IDs
+		// Unmarshal participant IDs
 		if len(participantIDsJSON) > 0 && string(participantIDsJSON) != "null" {
 			if err := json.Unmarshal(participantIDsJSON, &bk.ParticipantIDs); err != nil {
 				logger.Log.Warn(fmt.Sprintf("[get-all-booking-concertID-uc] Failed to unmarshal participant IDs for booking %s: %v", bk.BookingID, err))
