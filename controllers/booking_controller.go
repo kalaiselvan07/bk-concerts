@@ -347,3 +347,48 @@ func GetAllParicipantsByBookingIDIDController(c echo.Context) error {
 	// 3. Return the filtered list
 	return c.JSON(http.StatusOK, participants)
 }
+
+func GetETicketController(c echo.Context) error {
+	// 1. Extract bookingID from URL param
+	bookingID := c.Param("bookingID")
+	if bookingID == "" {
+		logger.Log.Error("[booking] Missing bookingID parameter in GetETicketController.")
+		return c.JSON(http.StatusBadRequest, map[string]string{"error": "bookingID is required"})
+	}
+
+	logger.Log.Info(fmt.Sprintf("[booking] Generating eTicket for bookingID: %s", bookingID))
+
+	// 2. Generate the eTicket PDF (and get booking details)
+	bk, pdfBytes, err := booking.GenerateTicketPDF(bookingID)
+	if err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Failed to generate eTicket for %s: %v", bookingID, err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": fmt.Sprintf("Failed to generate eTicket: %v", err),
+		})
+	}
+
+	// 3. If somehow no PDF returned, handle it gracefully
+	if pdfBytes == nil || len(pdfBytes) == 0 {
+		logger.Log.Error(fmt.Sprintf("[booking] No PDF data returned for bookingID: %s", bookingID))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to generate eTicket PDF data",
+		})
+	}
+
+	// 4. Set proper headers for file download
+	c.Response().Header().Set(echo.HeaderContentType, "application/pdf")
+	c.Response().Header().Set(echo.HeaderContentDisposition,
+		fmt.Sprintf(`attachment; filename="eTicket_%s.pdf"`, bk.BookingID))
+	c.Response().Header().Set(echo.HeaderCacheControl, "no-store")
+
+	// 5. Send the PDF as response body
+	if _, err := c.Response().Write(pdfBytes); err != nil {
+		logger.Log.Error(fmt.Sprintf("[booking] Failed to send eTicket PDF for %s: %v", bookingID, err))
+		return c.JSON(http.StatusInternalServerError, map[string]string{
+			"error": "Failed to stream eTicket file",
+		})
+	}
+
+	logger.Log.Info(fmt.Sprintf("[booking] eTicket successfully sent for bookingID: %s", bookingID))
+	return nil
+}

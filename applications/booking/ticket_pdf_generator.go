@@ -53,6 +53,10 @@ func GenerateTicketPDF(bookingID string) (*Booking, []byte, error) {
 		return nil, nil, fmt.Errorf("booking not found: %w", err)
 	}
 
+	if bk.BookingStatus != "APPROVED" {
+		return nil, nil, fmt.Errorf("booking status is not approved: %s", bk.BookingStatus)
+	}
+
 	st, err := seat.GetSeat(bk.SeatID)
 	if err != nil || st == nil {
 		return nil, nil, fmt.Errorf("seat not found: %w", err)

@@ -10,7 +10,7 @@ import (
 	"os"
 	"time"
 
-	"supra/applications/auth"
+	// "supra/applications/auth"
 	"supra/applications/participant"
 	"supra/applications/seat"
 	"supra/db"
@@ -88,24 +88,24 @@ func BookNow(payload []byte) (*Booking, error) {
 	}
 
 	// Use the ORIGINAL base64 from the request to avoid any re-encoding surprises.
-	receiptBase64 := p.ReceiptImage
+	// receiptBase64 := p.ReceiptImage
 
-	go func() {
-		logger.Log.Info(fmt.Sprintf("[create-booking-uc] ✉️ Admin email: %s", adminEmail))
-		err := auth.SendBookingNotificationEmail(
-			adminEmail,
-			bk.BookingID.String(),
-			bk.BookingEmail,
-			bk.SeatType,
-			bk.TotalAmount,
-			receiptBase64,
-		)
-		if err != nil {
-			logger.Log.Error(fmt.Sprintf("[create-booking-uc] ❌ Failed to send admin notification: %v", err))
-		} else {
-			logger.Log.Info(fmt.Sprintf("[create-booking-uc] ✉️ Admin notified of new booking: %s", bk.BookingID))
-		}
-	}()
+	// go func() {
+	// 	logger.Log.Info(fmt.Sprintf("[create-booking-uc] ✉️ Admin email: %s", adminEmail))
+	// 	err := auth.SendBookingNotificationEmail(
+	// 		adminEmail,
+	// 		bk.BookingID.String(),
+	// 		bk.BookingEmail,
+	// 		bk.SeatType,
+	// 		bk.TotalAmount,
+	// 		receiptBase64,
+	// 	)
+	// 	if err != nil {
+	// 		logger.Log.Error(fmt.Sprintf("[create-booking-uc] ❌ Failed to send admin notification: %v", err))
+	// 	} else {
+	// 		logger.Log.Info(fmt.Sprintf("[create-booking-uc] ✉️ Admin notified of new booking: %s", bk.BookingID))
+	// 	}
+	// }()
 
 	return bk, nil
 }

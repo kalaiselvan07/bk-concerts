@@ -3,13 +3,12 @@ package booking
 import (
 	"context"
 	"database/sql"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"strings"
 	"time"
 
-	"supra/applications/auth"
+	// "supra/applications/auth"
 	"supra/db"
 	"supra/logger"
 
@@ -97,23 +96,23 @@ func RejectBookingUC(bookingID string, reason string) (*Booking, error) {
 	logger.Log.Info(fmt.Sprintf("[reject-booking-uc] Booking %s successfully marked as REJECTED.", bookingID))
 
 	// Step 7: Send rejection email
-	var base64Receipt string
-	if len(receiptBytes) > 0 {
-		base64Receipt = base64.StdEncoding.EncodeToString(receiptBytes)
-	}
+	// var base64Receipt string
+	// if len(receiptBytes) > 0 {
+	// 	base64Receipt = base64.StdEncoding.EncodeToString(receiptBytes)
+	// }
 
-	emailErr := auth.SendBookingVerificationMail(
-		bk.BookingEmail,
-		"REJECTED",
-		bk.BookingID.String(),
-		base64Receipt,
-		reason, // Optional rejection reason
-	)
-	if emailErr != nil {
-		logger.Log.Warn(fmt.Sprintf("[reject-booking-uc] Booking %s rejected, but email sending failed: %v", bookingID, emailErr))
-	} else {
-		logger.Log.Info(fmt.Sprintf("[reject-booking-uc] Rejection email sent to %s.", bk.BookingEmail))
-	}
+	// emailErr := auth.SendBookingVerificationMail(
+	// 	bk.BookingEmail,
+	// 	"REJECTED",
+	// 	bk.BookingID.String(),
+	// 	base64Receipt,
+	// 	reason, // Optional rejection reason
+	// )
+	// if emailErr != nil {
+	// 	logger.Log.Warn(fmt.Sprintf("[reject-booking-uc] Booking %s rejected, but email sending failed: %v", bookingID, emailErr))
+	// } else {
+	// 	logger.Log.Info(fmt.Sprintf("[reject-booking-uc] Rejection email sent to %s.", bk.BookingEmail))
+	// }
 
 	return &bk, nil
 }

@@ -143,6 +143,7 @@ func main() {
 	// Booking Update/Delete
 	r.GET("/bookings", controllers.GetAllBookingsController)
 	r.GET("/bookings/:bookingID", controllers.GetBookingController)
+	r.GET("/bookings/:bookingID/eticket", controllers.GetETicketController)
 	r.PATCH("/bookings/:bookingID/receipt", controllers.UpdateBookingReceiptController)
 	r.GET("/bookings/:bookingID/receipt", controllers.GetBookingReceiptController)
 	r.GET("/bookings/participants-details/:bookingID", controllers.GetAllParicipantsByBookingIDIDController)
