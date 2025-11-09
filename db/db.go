@@ -3,8 +3,9 @@ package db
 import (
 	"database/sql"
 	"fmt"
+	"net/url"
 
-	"supra/logger" // ⬅️ Assuming this import path
+	"supra/logger"
 
 	_ "github.com/lib/pq" // PostgreSQL driver
 )
@@ -16,13 +17,29 @@ func InitDB(connStr string) error {
 	var err error
 
 	logger.Log.Info("[db] Attempting to open database connection...")
-	DB, err = sql.Open("postgres", connStr)
+
+	// ✅ Properly parse and modify DSN for lib/pq (safe & supported)
+	u, err := url.Parse(connStr)
+	if err != nil {
+		return fmt.Errorf("invalid DB connection string: %w", err)
+	}
+	q := u.Query()
+	q.Set("binary_parameters", "no") // <-- this is valid for lib/pq
+	u.RawQuery = q.Encode()
+	finalConnStr := u.String()
+
+	// ✅ Open DB using the official lib/pq driver
+	DB, err = sql.Open("postgres", finalConnStr)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("[db] Error opening database: %v", err))
 		return fmt.Errorf("error opening database: %w", err)
 	}
 
-	// Verify the connection is working
+	// ✅ Connection pool tuning
+	DB.SetMaxOpenConns(10)
+	DB.SetMaxIdleConns(5)
+
+	// ✅ Verify connection
 	logger.Log.Info("[db] Pinging database to verify connection...")
 	if err = DB.Ping(); err != nil {
 		logger.Log.Error(fmt.Sprintf("[db] Failed to ping database: %v", err))
@@ -30,6 +47,5 @@ func InitDB(connStr string) error {
 	}
 
 	logger.Log.Info("[db] Successfully connected to PostgreSQL!")
-	// fmt.Println("Successfully connected to PostgreSQL!") // Removed redundant fmt.Println in favor of logger
 	return nil
 }
