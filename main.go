@@ -146,7 +146,7 @@ func main() {
 	r.GET("/bookings/:bookingID/eticket", controllers.GetETicketController)
 	r.PATCH("/bookings/:bookingID/receipt", controllers.UpdateBookingReceiptController)
 	r.GET("/bookings/:bookingID/receipt", controllers.GetBookingReceiptController)
-	r.GET("/bookings/participants-details/:bookingID", controllers.GetAllParicipantsByBookingIDIDController)
+	noAuth.GET("/bookings/participants-details/:bookingID", controllers.GetAllParicipantsByBookingIDIDController)
 	// admin.PATCH("/bookings/participants-details/:bookingID", controllers.)
 	admin.PUT("/bookings/:bookingID", controllers.UpdateBookingController)
 	admin.DELETE("/bookings/:bookingID", controllers.DeleteBookingController)
