@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	// "supra/applications/auth"
+	"supra/applications/auth"
 	"supra/db"
 	"supra/logger"
 
@@ -39,24 +39,24 @@ func ApproveBookingUC(bookingID string) (*Booking, error) {
 	logger.Log.Info(fmt.Sprintf("[approve-booking-uc] ✅ Booking %s marked APPROVED.", bookingID))
 
 	// --- Generate eTicket PDF ---
-	// bk, pdfBytes, err := GenerateTicketPDF(bookingID)
-	// if err != nil {
-	// 	logger.Log.Warn(fmt.Sprintf("[approve-booking-uc] ⚠️ PDF generation failed: %v", err))
-	// }
+	bk, pdfBytes, err := GenerateTicketPDF(bookingID)
+	if err != nil {
+		logger.Log.Warn(fmt.Sprintf("[approve-booking-uc] ⚠️ PDF generation failed: %v", err))
+	}
 
 	// --- Send Email with PDF ---
-	// if emailErr := auth.SendBookingApprovalMail(
-	// 	bk.BookingEmail,
-	// 	bookingID,
-	// 	bk.SeatType,
-	// 	bk.SeatQuantity,
-	// 	bk.TotalAmount,
-	// 	pdfBytes,
-	// ); emailErr != nil {
-	// 	logger.Log.Warn(fmt.Sprintf("[approve-booking-uc] ⚠️ Email sending failed: %v", emailErr))
-	// } else {
-	// 	logger.Log.Info(fmt.Sprintf("[approve-booking-uc] ✉️ Approval email sent to %s", bk.BookingEmail))
-	// }
+	if emailErr := auth.SendBookingApprovalMail(
+		bk.BookingEmail,
+		bookingID,
+		bk.SeatType,
+		bk.SeatQuantity,
+		bk.TotalAmount,
+		pdfBytes,
+	); emailErr != nil {
+		logger.Log.Warn(fmt.Sprintf("[approve-booking-uc] ⚠️ Email sending failed: %v", emailErr))
+	} else {
+		logger.Log.Info(fmt.Sprintf("[approve-booking-uc] ✉️ Approval email sent to %s", bk.BookingEmail))
+	}
 
-	return nil, nil
+	return bk, nil
 }
