@@ -236,8 +236,14 @@ func GetAllBookingsByConcertIDController(c echo.Context) error {
 
 	logger.Log.Info(fmt.Sprintf("[booking] Fetching booking history for concertID: %s", concertID))
 
-	// 2. Call the use case, passing the user's email for filtering
-	bookingsList, err := booking.GetAllBookingsByConcertID(concertID, status)
+	var err error
+	var bookingsList []*booking.Booking
+	if status == "all" {
+		// 2. Call the use case, passing the user's email for filtering
+		bookingsList, err = booking.GetAllBookingsByConcertID(concertID)
+	} else {
+		bookingsList, err = booking.GetPendingBookingsByConcertID(concertID)
+	}
 
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("[booking] Error fetching booking history for %s: %v", concertID, err))

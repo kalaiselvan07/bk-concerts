@@ -11,19 +11,20 @@ import (
 	"github.com/google/uuid"
 )
 
-// GetAllBookingsByConcertID retrieves all bookings for a specific concert ID.
-func GetAllBookingsByConcertID(concertID string) ([]*Booking, error) {
+// GetPendingBookingsByConcertID retrieves all bookings for a specific concert ID.
+func GetPendingBookingsByConcertID(concertID string) ([]*Booking, error) {
 	logger.Log.Info(fmt.Sprintf("[get-all-booking-concertID-uc] Retrieving bookings for concert: %s", concertID))
 
 	ctx := context.Background()
 
 	selectAllSQL := `
-		SELECT booking_id, booking_email, booking_status, payment_details_id,
-				receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type,
-				participant_ids, created_at
-		FROM booking
-		WHERE concert_id = $1
-		ORDER BY created_at DESC`
+			SELECT booking_id, booking_email, booking_status, payment_details_id,
+			       receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type,
+			       participant_ids, created_at
+			FROM booking
+			WHERE concert_id = $1
+			  AND booking_status IN ('VERIFYING', 'PENDING_VERIFICATION')
+			ORDER BY created_at DESC`
 
 	logger.Log.Info("[get-all-booking-concertID-uc] Executing SELECT all query (filtered).")
 
