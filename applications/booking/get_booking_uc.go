@@ -18,7 +18,7 @@ func GetBooking(bookingID string) (*Booking, error) {
 	const selectSQL = `
 		SELECT booking_id, booking_email, booking_status, payment_details_id, 
 		       receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type, 
-		       participant_ids, created_at
+		       participant_ids, created_at, user_notes
 		FROM booking
 		WHERE booking_id = $1`
 
@@ -33,7 +33,7 @@ func GetBooking(bookingID string) (*Booking, error) {
 	err := row.Scan(
 		&bk.BookingID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
 		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.TotalAmount, &bk.SeatType,
-		&participantIDsJSON, &bk.CreatedAt,
+		&participantIDsJSON, &bk.CreatedAt, &bk.UserNotes,
 	)
 
 	if err != nil {
@@ -63,7 +63,7 @@ func GetBookingTx(tx *sql.Tx, bookingID string) (*Booking, error) {
 	const selectSQL = `
 		SELECT booking_id, booking_email, booking_status, payment_details_id, 
 		       receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type, 
-		       participant_ids, created_at
+		       participant_ids, created_at, user_notes
 		FROM booking
 		WHERE booking_id = $1`
 
@@ -77,7 +77,7 @@ func GetBookingTx(tx *sql.Tx, bookingID string) (*Booking, error) {
 	err := row.Scan(
 		&bk.BookingID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
 		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.TotalAmount, &bk.SeatType,
-		&participantIDsJSON, &bk.CreatedAt,
+		&participantIDsJSON, &bk.CreatedAt, &bk.UserNotes,
 	)
 
 	if err != nil {

@@ -28,6 +28,7 @@ type CreateBookingParams struct {
 	SeatID           string                 `json:"seatID" validate:"required"`
 	TotalAmount      float64                `json:"totalAmount" validate:"required"`
 	Participants     []*participantsDetails `json:"participants"`
+	UserNotes        string                 `json:"userNotes"`
 }
 
 type participantsDetails struct {
@@ -99,6 +100,7 @@ func BookNow(payload []byte) (*Booking, error) {
 			bk.SeatType,
 			bk.TotalAmount,
 			receiptBase64,
+			bk.UserNotes,
 		)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("[create-booking-uc] ❌ Failed to send admin notification: %v", err))
@@ -147,6 +149,9 @@ func addParticipantsTx(tx *sql.Tx, details []*participantsDetails) ([]string, er
 func newBookingTx(tx *sql.Tx, p *CreateBookingParams, seatType string, participantIDs []string) (*Booking, error) {
 	bkID := uuid.New()
 
+	if p.UserNotes == "" {
+		p.UserNotes = "Not provided"
+	}
 	participantIDsJSON, _ := json.Marshal(participantIDs)
 	receiptBytes, _ := base64.StdEncoding.DecodeString(p.ReceiptImage)
 
@@ -162,15 +167,16 @@ func newBookingTx(tx *sql.Tx, p *CreateBookingParams, seatType string, participa
 		SeatType:         seatType,
 		ParticipantIDs:   participantIDs,
 		CreatedAt:        time.Now(),
+		UserNotes:        p.UserNotes,
 	}
 
 	const insertSQL = `
 	INSERT INTO booking (
 		booking_id, booking_email, booking_status, payment_details_id,
 		receipt_image, seat_quantity, seat_id, concert_id, total_amount,
-		seat_type, participant_ids, created_at
+		seat_type, participant_ids, created_at, user_notes
 	)
-	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+	VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 `
 
 	_, err := tx.Exec(
@@ -187,6 +193,7 @@ func newBookingTx(tx *sql.Tx, p *CreateBookingParams, seatType string, participa
 		bk.SeatType,
 		participantIDsJSON,
 		bk.CreatedAt,
+		bk.UserNotes,
 	)
 
 	if err != nil {

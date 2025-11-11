@@ -156,10 +156,11 @@ func DeleteBookingController(c echo.Context) error {
 	return c.JSON(http.StatusOK, cancelledBooking)
 }
 
-// UpdateBookingReceiptController handles PATCH /bookings/:bookingID/receipt
+// UpdateBookingDetailsController handles PATCH /bookings/:bookingID/receipt
 // It allows the user to re-upload or replace their payment receipt image.
-func UpdateBookingReceiptController(c echo.Context) error {
+func UpdateBookingDetailsController(c echo.Context) error {
 	bookingID := c.Param("bookingID")
+	resourceType := c.Param("resourceType")
 
 	// Read request body
 	payload, err := io.ReadAll(c.Request().Body)
@@ -171,7 +172,13 @@ func UpdateBookingReceiptController(c echo.Context) error {
 	}
 
 	// Call use case
-	updatedBooking, err := booking.UpdateBookingReceiptUC(bookingID, payload)
+	var updatedBooking *booking.Booking
+	if resourceType == "receipt" {
+		updatedBooking, err = booking.UpdateBookingReceiptUC(bookingID, payload)
+	} else if resourceType == "notes" {
+		updatedBooking, err = booking.UpdateBookingNotesUC(bookingID, payload)
+	}
+
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("[booking] Failed to update receipt for booking %s: %v", bookingID, err))
 
@@ -299,39 +306,6 @@ func VerifyBookingController(c echo.Context) error {
 		logger.Log.Warn(fmt.Sprintf("[booking-controller] Invalid action %q for booking %s", action, bookingID))
 		return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid action; must be approve or reject"})
 	}
-}
-
-func UpdateParticipantBookingReceiptController(c echo.Context) error {
-	bookingID := c.Param("bookingID")
-
-	// Read request body
-	payload, err := io.ReadAll(c.Request().Body)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("[booking] Failed to read payload for booking %s: %v", bookingID, err))
-		return c.JSON(http.StatusBadRequest, map[string]string{
-			"error": "Invalid request payload.",
-		})
-	}
-
-	// Call use case
-	updatedBooking, err := booking.UpdateBookingReceiptUC(bookingID, payload)
-	if err != nil {
-		logger.Log.Error(fmt.Sprintf("[booking] Failed to update receipt for booking %s: %v", bookingID, err))
-
-		switch {
-		case strings.Contains(err.Error(), "invalid booking ID"):
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid booking ID."})
-		case strings.Contains(err.Error(), "invalid base64"):
-			return c.JSON(http.StatusBadRequest, map[string]string{"error": "Invalid receipt image format."})
-		case strings.Contains(err.Error(), "not found"):
-			return c.JSON(http.StatusNotFound, map[string]string{"error": "Booking not found."})
-		default:
-			return c.JSON(http.StatusInternalServerError, map[string]string{"error": "Receipt update failed: " + err.Error()})
-		}
-	}
-
-	logger.Log.Info(fmt.Sprintf("[booking] Receipt updated successfully for booking %s.", bookingID))
-	return c.JSON(http.StatusOK, updatedBooking)
 }
 
 func GetAllParicipantsByBookingIDIDController(c echo.Context) error {

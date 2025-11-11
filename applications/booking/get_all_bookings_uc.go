@@ -20,7 +20,7 @@ func GetAllBookings(userEmail string) ([]*Booking, error) {
 	const selectAllSQL = `
 		SELECT booking_id, booking_email, booking_status, payment_details_id, 
 		       receipt_image, seat_quantity, seat_id, concert_id, total_amount, seat_type, 
-		       participant_ids, created_at
+		       participant_ids, created_at, user_notes
 		FROM booking
 		WHERE booking_email = $1  -- Filter added
 		ORDER BY created_at DESC`
@@ -48,7 +48,7 @@ func GetAllBookings(userEmail string) ([]*Booking, error) {
 		err := rows.Scan(
 			&bookingIDUUID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
 			&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.ConcertID, &bk.TotalAmount, &bk.SeatType,
-			&participantIDsJSON, &bk.CreatedAt,
+			&participantIDsJSON, &bk.CreatedAt, &bk.UserNotes,
 		)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("[get-all-booking-uc] Error scanning booking row for %s: %v", userEmail, err))

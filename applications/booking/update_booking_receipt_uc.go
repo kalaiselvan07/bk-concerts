@@ -16,7 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// UpdateBookingReceiptUC updates the receipt image and sends admin a notification email.
+// UpdateBookingReceiptUC updates only the receipt image (not notes) if booking is not approved.
 func UpdateBookingReceiptUC(bookingID string, payload []byte) (*Booking, error) {
 	logger.Log.Info(fmt.Sprintf("[update-booking-receipt-uc] 🚀 Starting receipt re-upload for booking %s", bookingID))
 
@@ -41,7 +41,7 @@ func UpdateBookingReceiptUC(bookingID string, payload []byte) (*Booking, error) 
 		return nil, fmt.Errorf("invalid booking ID: %w", err)
 	}
 
-	// Step 3️⃣ Decode Base64 → binary image bytes
+	// Step 3️⃣ Decode Base64 → binary
 	decodedBytes, err := base64.StdEncoding.DecodeString(p.ReceiptImage)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("[update-booking-receipt-uc] ❌ Invalid base64 image for %s: %v", bookingID, err))
@@ -58,15 +58,18 @@ func UpdateBookingReceiptUC(bookingID string, payload []byte) (*Booking, error) 
 
 	logger.Log.Info(fmt.Sprintf("[update-booking-receipt-uc] 🧾 Transaction started for booking %s", bookingID))
 
-	// Step 5️⃣ Update DB record
+	// Step 5️⃣ Update DB record safely (no user_notes touched)
 	query := `
 		UPDATE booking
-		SET receipt_image = $2,
-		    booking_status = 'PENDING_VERIFICATION'
-		WHERE booking_id = $1
+		SET
+			receipt_image   = $2,
+			booking_status  = 'PENDING_VERIFICATION'
+		WHERE
+			booking_id = $1
+			AND booking_status IS DISTINCT FROM 'APPROVED'
 		RETURNING booking_id, booking_email, booking_status, payment_details_id,
 		          receipt_image, seat_quantity, seat_id, total_amount, seat_type,
-		          participant_ids, created_at
+		          participant_ids, created_at, user_notes;
 	`
 
 	var (
@@ -80,11 +83,11 @@ func UpdateBookingReceiptUC(bookingID string, payload []byte) (*Booking, error) 
 	if err := row.Scan(
 		&idUUID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
 		&receiptBytes, &bk.SeatQuantity, &bk.SeatID, &bk.TotalAmount,
-		&bk.SeatType, &participantIDsRaw, &bk.CreatedAt,
+		&bk.SeatType, &participantIDsRaw, &bk.CreatedAt, &bk.UserNotes,
 	); err != nil {
 		if err == sql.ErrNoRows {
-			logger.Log.Warn(fmt.Sprintf("[update-booking-receipt-uc] Booking not found for ID: %s", bookingID))
-			return nil, fmt.Errorf("booking not found: %s", bookingID)
+			logger.Log.Warn(fmt.Sprintf("[update-booking-receipt-uc] ⚠️ Booking %s not found or already approved", bookingID))
+			return nil, fmt.Errorf("booking not found or already approved")
 		}
 		logger.Log.Error(fmt.Sprintf("[update-booking-receipt-uc] Database error: %v", err))
 		return nil, fmt.Errorf("database error: %w", err)
@@ -106,7 +109,7 @@ func UpdateBookingReceiptUC(bookingID string, payload []byte) (*Booking, error) 
 	}
 	logger.Log.Info(fmt.Sprintf("[update-booking-receipt-uc] ✅ DB updated and committed for booking %s", bookingID))
 
-	// Step 8️⃣ Send Admin Notification Email (no approve/reject)
+	// Step 8️⃣ Notify admin
 	adminEmail := os.Getenv("ADMIN_EMAIL")
 	if adminEmail == "" {
 		logger.Log.Warn("[update-booking-receipt-uc] ⚠️ ADMIN_EMAIL not set — skipping notification.")
@@ -123,6 +126,7 @@ func UpdateBookingReceiptUC(bookingID string, payload []byte) (*Booking, error) 
 			bk.SeatType,
 			bk.TotalAmount,
 			encodedReceipt,
+			bk.UserNotes,
 		)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("[update-booking-receipt-uc] ❌ Failed to send admin notification: %v", err))

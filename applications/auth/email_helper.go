@@ -85,27 +85,29 @@ func SendOTP(toEmail, code string) error {
 }
 
 // Admin notification (includes inline preview + attachment)
-func SendBookingNotificationEmail(toEmail, bookingID, userEmail, seatType string, total float64, receiptBase64 string) error {
+func SendBookingNotificationEmail(toEmail, bookingID, userEmail, seatType string, total float64, receiptBase64, userNotes string) error {
 	html := fmt.Sprintf(`
 		<h2>🎟️ New Booking Notification</h2>
 		<p><b>Booking ID:</b> %s</p>
 		<p><b>User:</b> %s</p>
+		<p><b>User Notes:</b> %s</p>
 		<p><b>Seat Type:</b> %s</p>
 		<p><b>Total:</b> ₹%.2f</p>
 		<p>Status: <b style="color:#007bff;">Pending Verification</b></p>
 		<p>Receipt (preview):</p>
 		<img src="data:image/png;base64,%s" style="max-width:500px;border-radius:8px;" />
-	`, bookingID, userEmail, seatType, total, receiptBase64)
+	`, bookingID, userEmail, userNotes, seatType, total, receiptBase64)
 
 	att := Attachment{Filename: "receipt.png", Content: receiptBase64}
 	return sendEmailResend(toEmail, fmt.Sprintf("🆕 New Booking Created [%s]", bookingID), html, "", att)
 }
 
 // Re-upload notification (with Approve/Reject + attachment)
-func SendReceiptReuploadNotification(toEmail, bookingID, userEmail, seatType string, amount float64, base64Receipt string) error {
+func SendReceiptReuploadNotification(toEmail, bookingID, userEmail, seatType string, amount float64, base64Receipt, userNotes string) error {
 	html := fmt.Sprintf(`
 		<h2>🔄 Receipt Re-upload Alert</h2>
 		<p>User <b>%s</b> re-uploaded payment receipt for:</p>
+		<p><b>User Notes:</b> %s</p>
 		<ul>
 			<li><b>Booking ID:</b> %s</li>
 			<li><b>Seat Type:</b> %s</li>
@@ -114,7 +116,7 @@ func SendReceiptReuploadNotification(toEmail, bookingID, userEmail, seatType str
 
 		<p>Receipt (preview):</p>
 		<img src="data:image/png;base64,%s" style="max-width:450px;margin-top:15px;border-radius:6px;" />
-	`, userEmail, bookingID, seatType, amount, base64Receipt)
+	`, userEmail, userNotes, bookingID, seatType, amount, base64Receipt)
 
 	att := Attachment{Filename: "receipt.png", Content: base64Receipt}
 	return sendEmailResend(toEmail, fmt.Sprintf("🔄 Receipt Re-uploaded [%s]", bookingID), html, "", att)

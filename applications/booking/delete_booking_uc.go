@@ -59,7 +59,7 @@ func DeleteBooking(bookingID string) (*Booking, error) {
 		WHERE booking_id = $1
 		RETURNING booking_id, booking_email, booking_status, payment_details_id, 
 				  receipt_image, seat_quantity, seat_id, total_amount, seat_type, 
-				  participant_ids, created_at`
+				  participant_ids, created_at, user_notes`
 
 	// Note: We reuse the RETURNING statement logic from UpdateBooking for convenience
 	updatedBk := &Booking{}
@@ -72,7 +72,7 @@ func DeleteBooking(bookingID string) (*Booking, error) {
 	if err := row.Scan(
 		&bookingIDUUID, &updatedBk.BookingEmail, &updatedBk.BookingStatus, &updatedBk.PaymentDetailsID,
 		&receiptImage, &updatedBk.SeatQuantity, &updatedBk.SeatID, &updatedBk.TotalAmount, &updatedBk.SeatType,
-		&participantIDsJSON, &updatedBk.CreatedAt,
+		&participantIDsJSON, &updatedBk.CreatedAt, &updatedBk.UserNotes,
 	); err != nil {
 		tx.Rollback()
 		logger.Log.Error(fmt.Sprintf("[delete-booking-uc] Failed to scan RETURNING row after status update (Rollback): %v", err))

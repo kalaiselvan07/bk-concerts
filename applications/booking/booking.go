@@ -19,6 +19,7 @@ type Booking struct {
 	TotalAmount      float64   `json:"totalAmount"`
 	ParticipantIDs   []string  `json:"participantIDs"` // Stored as JSONB
 	CreatedAt        time.Time `json:"createdAt"`
+	UserNotes        string    `json:"userNotes"`
 }
 
 const (

@@ -77,6 +77,10 @@ CREATE TABLE IF NOT EXISTS otp_codes (
     expires_at TIMESTAMP WITH TIME ZONE NOT NULL
 );`
 
+const AlterBookingTableSQL = `
+ALTER TABLE booking ADD COLUMN IF NOT EXISTS user_notes TEXT;
+`
+
 // RunMigrations executes all necessary database structure changes.
 func RunMigrations() error {
 	if DB == nil {
@@ -96,6 +100,7 @@ func RunMigrations() error {
 		{Name: "Participants", SQL: createParticipantTableSQL},
 		{Name: "Payments", SQL: createPaymentTableSQL},
 		{Name: "Bookings", SQL: createBookingTableSQL},
+		{Name: "AlterBookings", SQL: AlterBookingTableSQL},
 	}
 
 	logger.Log.Info("[db] Starting database migrations...")

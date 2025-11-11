@@ -21,6 +21,7 @@ type UpdateBookingParams struct {
 	BookingStatus    string `json:"bookingStatus,omitempty"`
 	PaymentDetailsID string `json:"paymentDetailsID,omitempty"`
 	ReceiptImage     string `json:"receiptImage,omitempty"` // Base64 string
+	UserNotes        string `json:"userNotes"`
 	// SeatQuantity, SeatID, TotalAmount, and ParticipantIDs are typically immutable or handled by separate UCs.
 }
 
@@ -82,6 +83,11 @@ func UpdateBooking(bookingID string, payload []byte) (*Booking, error) {
 		args = append(args, receiptBytes)
 		argCounter++
 	}
+	if p.UserNotes != "" {
+		sets = append(sets, fmt.Sprintf("user_notes = $%d", argCounter))
+		args = append(args, p.UserNotes)
+		argCounter++
+	}
 
 	if len(sets) == 0 {
 		logger.Log.Warn(fmt.Sprintf("[update-booking-uc] Update skipped for %s: No updatable fields provided in payload.", bookingID))
@@ -95,7 +101,7 @@ func UpdateBooking(bookingID string, payload []byte) (*Booking, error) {
 		SET %s
 		WHERE booking_id = $1
 		RETURNING booking_id, booking_email, booking_status, payment_details_id, 
-		           receipt_image, seat_quantity, seat_id, total_amount, seat_type, 
+		           receipt_image, user_notes, seat_quantity, seat_id, total_amount, seat_type, 
 		           participant_ids, created_at`,
 		strings.Join(sets, ", "))
 
@@ -112,7 +118,7 @@ func UpdateBooking(bookingID string, payload []byte) (*Booking, error) {
 
 	if err := row.Scan(
 		&bookingIDUUID, &bk.BookingEmail, &bk.BookingStatus, &bk.PaymentDetailsID,
-		&receiptImage, &bk.SeatQuantity, &bk.SeatID, &bk.TotalAmount,
+		&receiptImage, &bk.UserNotes, &bk.SeatQuantity, &bk.SeatID, &bk.TotalAmount,
 		&participantIDsJSON, &bk.CreatedAt, &bk.SeatType,
 	); err != nil {
 		if err == sql.ErrNoRows {
