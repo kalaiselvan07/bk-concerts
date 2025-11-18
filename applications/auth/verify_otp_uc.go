@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"supra/applications/user"
@@ -21,6 +22,18 @@ func VerifyOTP(email, code string) (token string, role string, err error) {
 	if err != nil {
 		logger.Log.Warn(fmt.Sprintf("[auth] Verification failed for %s: User not found.", email))
 		return "", "", errors.New("invalid code or user not found")
+	}
+
+	if os.Getenv("OTP_ENABLED") == "false" {
+		// 5. Generate and return the JWT
+		token, err = GenerateJWT(u.UserID.String(), u.Email, u.Role)
+		if err != nil {
+			logger.Log.Error(fmt.Sprintf("[auth] Failed to generate final JWT for %s: %v", email, err))
+			return "", "", fmt.Errorf("failed to generate JWT: %w", err)
+		}
+
+		logger.Log.Info(fmt.Sprintf("[auth] Verification successful for %s. JWT issued. Role: %s.", email, u.Role))
+		return token, u.Role, nil
 	}
 
 	logger.Log.Info(fmt.Sprintf("[auth] User %s found. Proceeding to OTP validation.", email))

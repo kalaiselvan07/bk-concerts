@@ -3,6 +3,7 @@ package controllers
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"supra/applications/auth"
@@ -40,6 +41,12 @@ func LoginHandler(c echo.Context) error {
 
 		logger.Log.Info(fmt.Sprintf("[auth] Admin login successful for %s. Role: %s", params.Email, role))
 		return c.JSON(http.StatusOK, LoginResponse{Token: token, Role: role})
+	}
+
+	logger.Log.Info(fmt.Sprintf("[testSelvan] featureflag: %s", os.Getenv("OTP_ENABLED")))
+
+	if os.Getenv("OTP_ENABLED") == "false" {
+		return c.JSON(http.StatusOK, map[string]string{"message": "Email service temporarily down, please enter random numbers"})
 	}
 
 	// 2. REGULAR USER LOGIN: Email-only -> Start OTP flow
