@@ -25,6 +25,11 @@ func VerifyOTP(email, code string) (token string, role string, err error) {
 	}
 
 	if os.Getenv("OTP_ENABLED") == "false" {
+
+		if u.Role == user.RoleAdmin {
+			return "", "", errors.New("Fuck off! You idiot...")
+		}
+
 		// 5. Generate and return the JWT
 		token, err = GenerateJWT(u.UserID.String(), u.Email, u.Role)
 		if err != nil {
