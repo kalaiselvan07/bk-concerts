@@ -48,6 +48,15 @@ func BookNow(payload []byte) (*Booking, error) {
 		return nil, fmt.Errorf("%s: unmarshal error: %w", CANCELLED, err)
 	}
 
+	v, err := GetConcertBooking(p.ConcertID)
+	if err != nil {
+		return nil, fmt.Errorf("Error getting booking status for concert ID: %w", err)
+	}
+
+	if !v {
+		return nil, fmt.Errorf("Booking has been closed already!")
+	}
+
 	tx, err := db.DB.BeginTx(context.Background(), nil)
 	if err != nil {
 		logger.Log.Error(fmt.Sprintf("[create-booking-uc] ❌ Failed to start DB transaction: %v", err))

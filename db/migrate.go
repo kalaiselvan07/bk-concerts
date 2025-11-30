@@ -81,6 +81,10 @@ const AlterBookingTableSQL = `
 ALTER TABLE booking ADD COLUMN IF NOT EXISTS user_notes TEXT;
 `
 
+const AlterConcertTableSQL = `
+ALTER TABLE concert ADD COLUMN IF NOT EXISTS booking BOOLEAN DEFAULT FALSE;
+`
+
 // RunMigrations executes all necessary database structure changes.
 func RunMigrations() error {
 	if DB == nil {
@@ -101,6 +105,7 @@ func RunMigrations() error {
 		{Name: "Payments", SQL: createPaymentTableSQL},
 		{Name: "Bookings", SQL: createBookingTableSQL},
 		{Name: "AlterBookings", SQL: AlterBookingTableSQL},
+		{Name: "AlterConcerts", SQL: AlterConcertTableSQL},
 	}
 
 	logger.Log.Info("[db] Starting database migrations...")

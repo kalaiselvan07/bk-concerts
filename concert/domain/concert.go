@@ -8,4 +8,5 @@ type Concert struct {
 	SeatIDs     []string `json:"seatIDs" validate:"required"`
 	PaymentIDs  []string `json:"paymentDetailsIDs" validate:"required"`
 	Description string   `json:"description,omitempty"`
+	Booking     bool     `json:"booking"`
 }

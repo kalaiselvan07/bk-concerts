@@ -28,7 +28,7 @@ func (uc *GetAllConcertsUC) Invoke() ([]*domain.Concert, error) {
 
 	// ✨ 1. Update SELECT query to include payment_ids ✨
 	const selectAllSQL = `
-		SELECT concert_id, title, venue, timing, seat_ids, payment_ids, description 
+		SELECT concert_id, title, venue, timing, seat_ids, payment_ids, description, booking 
 		FROM concert
 		ORDER BY timing DESC`
 
@@ -59,6 +59,7 @@ func (uc *GetAllConcertsUC) Invoke() ([]*domain.Concert, error) {
 			&seatIDsJSON,
 			&paymentIDsJSON, // ✨ Scan the new column ✨
 			&c.Description,
+			&c.Booking,
 		)
 		if err != nil {
 			logger.Log.Error(fmt.Sprintf("[get-all-concert-uc] Error scanning concert row: %v", err))
